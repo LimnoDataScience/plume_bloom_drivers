@@ -37,3 +37,10 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Targets pipeline files
+gd_config.yml
+_targets/*
+1_download/out/*
+!*/*/.placeholder
+
