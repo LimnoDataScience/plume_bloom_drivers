@@ -96,7 +96,7 @@ p1_download <- list(
     # Download each date for the current variable from PRISM
     get_prism_dailys(
       type = p1_prism_vars,
-      dates = p2_prism_dates[year(p2_prism_dates) >= 2022],
+      dates = p2_prism_dates,
       keepZip=FALSE
     )
     # In order to track files and changes, list the files saved in
