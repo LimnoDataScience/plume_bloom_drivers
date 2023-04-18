@@ -115,6 +115,12 @@ p1_download <- list(
     return(tibble(prism_var = p1_prism_vars,
                   prism_files = var_files))
   }, 
-  pattern = cross(p1_prism_vars, p1_prism_download_batches))
+  pattern = cross(p1_prism_vars, p1_prism_download_batches),
+  # Sometimes there is a temporary timeout when pulling a date. Retrying 
+  # has usually fixed it. To handle this more automatically, use `error="null"`
+  # so that this target will move on and build all branches BUT will
+  # not considered "complete" and thus will try to rebuild the branch that
+  # errored the next time the pipeline is built.
+  error = "null")
   
 )
