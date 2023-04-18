@@ -17,6 +17,7 @@ At this time, the raster files are kept in a Google Drive folder where you need 
 After you build the pipeline, you should be able to see the following:
 
 1. Histogram summarizing the pixel counts by year and mission: `tar_read(p4_basic_summary_histogram)`
+2. PRISM drivers as timeseries, visualized by location: `tar_read(p4_prism_summary)`
 
 ## Contributing to this pipeline
 
