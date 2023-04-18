@@ -40,7 +40,7 @@ p1_download <- list(
   }, format = 'file',
   pattern = map(p1_gd_netcdfs)),
   
-  ##### Download the GEE imagery mission-dates from Google Drive #####
+  ##### Download the GEE imagery and AOI mission-dates from Google Drive #####
   
   # List the files available in this specified folder
   tar_target(p1_gd_id_missiondates, as_id('1UEEVBlvX7P4H2dtNoX1oj44-Xeyg6x01')),
@@ -56,15 +56,44 @@ p1_download <- list(
       overwrite=TRUE)
     return(local_file_info$local_path)
   }, format = "file"),
+  
+  tar_target(p1_lake_superior_sf, {
+    # Pulled the bounding box for our Lake Superior AOI:
+    # https://github.com/rossyndicate/Superior-Plume-Bloom/blob/efa1bdc644611ee97c2e1e0c3bf0cfc4a7ca1955/eePlumB/A_PrepAOI/TileAOI.Rmd#L31-L52
+    sup_box <- tibble(ymin = 46.5, ymax = 47.3,  xmin = -92.2,xmax = -90.1)
+    
+    tibble(
+      lat = c(sup_box$ymin, sup_box$ymax, sup_box$ymax, sup_box$ymin, sup_box$ymin),
+      lon = c(sup_box$xmin, sup_box$xmin, sup_box$xmax, sup_box$xmin, sup_box$xmax)) %>% 
+      st_as_sf(coords = c('lon', 'lat'), crs = 4326) %>% 
+      st_bbox() %>% st_as_sfc()
+  }),
+  tar_target(p1_lake_superior_grid_sf, 
+    # Now make the grid using that box. To do this, I borrowed code from:
+    # https://github.com/rossyndicate/Superior-Plume-Bloom/blob/efa1bdc644611ee97c2e1e0c3bf0cfc4a7ca1955/eePlumB/A_PrepAOI/TileAOI.Rmd#L31-L52
+    st_make_grid(p1_lake_superior_sf, 
+                 cellsize = c(0.55, 0.3)) # units are degrees
+  ),
+    
+  tar_target(p1_lake_superior_grid_centers, 
+    # Get the center of each cell and then convert to a table
+    p1_lake_superior_grid_sf %>% 
+      st_centroid() %>% 
+      st_coordinates() %>% 
+      as_tibble() %>% 
+      setNames(c('longitude', 'latitude')) %>% 
+      mutate(cell_no = row_number())),
 
   ##### Download the PRISM meteo data #####
   
+  tar_target(p1_prism_dir, '1_download/prism_data'),
   tar_target(p1_prism_vars, c('tmean', 'ppt')),
   
   tar_target(p1_prism_files, {
+    # Set the directory where the prism files will go
+    prism_set_dl_dir(p1_prism_dir)
+    
     # Download each date for the current variable from PRISM
-    dir_out <- '1_download/prism_data'
-    prism_set_dl_dir(dir_out)
     get_prism_dailys(
       type = p1_prism_vars,
       dates = p2_prism_dates[year(p2_prism_dates) >= 2022],
@@ -74,7 +103,7 @@ p1_download <- list(
     # the folder as the output here. This works since each subfolder
     # is named with the variable and date so adding dates or vars
     # will result in changes here. 
-    var_files <- list.files(dir_out, pattern = p1_prism_vars)
+    var_files <- list.files(p1_prism_dir, pattern = p1_prism_vars)
     return(tibble(prism_var = p1_prism_vars,
                   prism_files = var_files))
   }, pattern = map(p1_prism_vars))

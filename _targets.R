@@ -10,6 +10,7 @@ tar_option_set(packages = c(
   'ncdf4',
   'prism',
   'raster',
+  'sf',
   'tidyverse',
   'yaml'
 ), format='qs')

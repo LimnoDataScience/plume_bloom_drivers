@@ -53,6 +53,28 @@ p2_process <- list(
     purrr::map(p2_mission_dates_aprnov, function(date) {
       seq(from = date - 14, to = date, by = "days")
     }) %>% reduce(c) %>% unique()
-  })
+  }),
+  
+  ##### Read PRISM files and load into tibbles #####
+  
+  # TODO: some grid cells return NAs because the centroid is over 
+  # the water (and I assume there is some sort of water masking?)
+  # Also, need to see grid cell size compared to PRISM resolution
+  # because some seem like they are duplicates.
+  
+  # For a given lat/long, use `prism` fxns to extract timeseries
+  tar_target(p2_prism_plots, 
+             extract_prism_at_location(
+               lat = p1_lake_superior_grid_centers$latitude,
+               lon = p1_lake_superior_grid_centers$longitude,
+               prism_var = p1_prism_vars,
+               prism_dir = p1_prism_dir), 
+             pattern = cross(p1_lake_superior_grid_centers, p1_prism_vars),
+             iteration = "list"),
+  
+  # Convert the `prism` plot objects into a single data frame
+  # with all PRISM vars
+  tar_target(p2_prism_data, p2_prism_plots$data, 
+             pattern = map(p2_prism_plots))
   
 )
