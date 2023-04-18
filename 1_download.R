@@ -89,6 +89,13 @@ p1_download <- list(
   tar_target(p1_prism_dir, '1_download/prism_data'),
   tar_target(p1_prism_vars, c('tmean', 'ppt')),
   
+  # Group the dates so that we can query individually and
+  # therefore rebuild only dates that don't work, but not
+  # store thousands of dynamic branches
+  tar_group_count(p1_prism_download_batches, 
+                  tibble(date = p2_prism_dates),
+                  count = 20),
+  
   tar_target(p1_prism_files, {
     # Set the directory where the prism files will go
     prism_set_dl_dir(p1_prism_dir)
@@ -96,9 +103,10 @@ p1_download <- list(
     # Download each date for the current variable from PRISM
     get_prism_dailys(
       type = p1_prism_vars,
-      dates = p2_prism_dates,
+      dates = p1_prism_download_batches$date,
       keepZip=FALSE
     )
+    
     # In order to track files and changes, list the files saved in
     # the folder as the output here. This works since each subfolder
     # is named with the variable and date so adding dates or vars
@@ -106,6 +114,7 @@ p1_download <- list(
     var_files <- list.files(p1_prism_dir, pattern = p1_prism_vars)
     return(tibble(prism_var = p1_prism_vars,
                   prism_files = var_files))
-  }, pattern = map(p1_prism_vars))
+  }, 
+  pattern = cross(p1_prism_vars, p1_prism_download_batches))
   
 )
