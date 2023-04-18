@@ -63,14 +63,18 @@ p2_process <- list(
   # because some seem like they are duplicates.
   
   # For a given lat/long, use `prism` fxns to extract timeseries
-  tar_target(p2_prism_plots, 
-             extract_prism_at_location(
-               lat = p1_lake_superior_grid_centers$latitude,
-               lon = p1_lake_superior_grid_centers$longitude,
-               prism_var = p1_prism_vars,
-               prism_dir = p1_prism_dir), 
-             pattern = cross(p1_lake_superior_grid_centers, p1_prism_vars),
-             iteration = "list"),
+  tar_target(p2_prism_plots, {
+    # Make this target dependent on the prism files so that it will
+    # if they change.
+    p1_prism_files
+    extract_prism_at_location(
+      lat = p1_lake_superior_grid_centers$latitude,
+      lon = p1_lake_superior_grid_centers$longitude,
+      prism_var = p1_prism_vars,
+      prism_dir = p1_prism_dir)
+  }, 
+  pattern = cross(p1_lake_superior_grid_centers, p1_prism_vars),
+  iteration = "list"),
   
   # Convert the `prism` plot objects into a single data frame
   # with all PRISM vars
