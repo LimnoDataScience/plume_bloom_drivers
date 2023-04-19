@@ -33,13 +33,13 @@ summarize_raster_class_counts <- function(raster_list) {
     select(mission, date, class = value, count)
 }
 
-extract_prism_at_location <- function(lat, lon, prism_var, prism_dir) {
+extract_prism_at_location <- function(lat, lon, prism_var, prism_dates, prism_dir) {
   
   # Set the prism archive location
   prism_set_dl_dir(prism_dir)
   
   # Use prism helper fxns to list relevant files for the variable
-  to_slice <- prism_archive_subset(prism_var, "daily")
+  to_slice <- prism_archive_subset(prism_var, "daily", dates = prism_dates)
   
   # Convert sf point to a vector, `c(longitude, latitude)`
   lon_lat_vector <- c(lon, lat)

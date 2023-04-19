@@ -71,9 +71,11 @@ p2_process <- list(
       lat = p1_lake_superior_grid_centers$latitude,
       lon = p1_lake_superior_grid_centers$longitude,
       prism_var = p1_prism_vars,
+      prism_dates = p1_prism_download_batches$date,
       prism_dir = p1_prism_dir)
   }, 
-  pattern = cross(p1_lake_superior_grid_centers, p1_prism_vars),
+  pattern = cross(p1_lake_superior_grid_centers, p1_prism_vars,
+                  p1_prism_download_batches),
   iteration = "list"),
   
   # Convert the `prism` plot objects into a single data frame
