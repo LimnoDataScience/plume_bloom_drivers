@@ -47,13 +47,6 @@ p2_process <- list(
                unique() %>% 
                # Sort is needed because B randomized the mission-dates for eePlumb workflow
                sort()),
-  tar_target(p2_prism_dates, {
-    # Create vector of dates for which to download PRISM data. Only want 
-    # to download the mission dates and 2 preceding weeks
-    purrr::map(p2_mission_dates_aprnov, function(date) {
-      seq(from = date - 14, to = date, by = "days")
-    }) %>% reduce(c) %>% unique()
-  }),
   
   ##### Read PRISM files and load into tibbles #####
   
