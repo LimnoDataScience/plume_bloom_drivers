@@ -42,5 +42,6 @@ vignettes/*.pdf
 gd_config.yml
 _targets/*
 1_download/out/*
+1_download/prism_data/*
 !*/*/.placeholder
 

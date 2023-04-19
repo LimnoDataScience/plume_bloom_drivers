@@ -8,7 +8,9 @@ options(googledrive_quiet = TRUE)
 tar_option_set(packages = c(
   'googledrive',
   'ncdf4',
+  'prism',
   'raster',
+  'sf',
   'tidyverse',
   'yaml'
 ), format='qs')
