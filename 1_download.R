@@ -125,4 +125,10 @@ p1_download <- list(
   # errored the next time the pipeline is built.
   error = "null")
   
+  # If you download the zip of all the pre-downloaded prism data, uncomment
+  # this target and comment out the one above instead. Make sure you 
+  # unzip the files and place them in `1_download/prism_data/`
+  # tar_target(p1_prism_files, 
+  #            list.files('1_download/prism_data'))
+  
 )

@@ -5,7 +5,9 @@ Using classified raster images and meteo drivers to try to better understand wha
 
 This pipeline is setup to download, process, and run models for detecting blooms and plumes. It is structured as a [`{{targets}}`](https://docs.ropensci.org/targets/) pipeline so that the workflow is easily reproducible and can be followed. The pipeline and workflow be run easily using `tar_make()`. The first time you run this, you may get errors about missing packages. Install those and then try again.
 
-At this time, the raster files are kept in a Google Drive folder where you need to have specific access. The data may be released in the future, which would make this step easier. For now, you need to follow the steps below in order to authenticate to Google Drive when running `tar_make()`.
+The meteorological driver data from Prism does take a long time to download. If you have access to the zip file of these pre-downloaded data on Box, comment out the `p1_prism_files` target in `1_download.R` and uncomment the target with the same name that is set up below it. You will need to download the zip file from Box and unzip the files to the `1_download/prism_data/` directory before being able to build the full pipeline.
+
+At this time, the raster files of classified imagery are kept in a Google Drive folder where you need to have specific access. The data may be released in the future, which would make this step easier. For now, you need to follow the steps below in order to authenticate to Google Drive when running `tar_make()`.
 
 1. Create a new text file called `.gd_config` and save in the top-level directory of this project.
 2. Copy-paste this code into that file: `gd_email: 'YOUR_EMAIL@some.service'`
