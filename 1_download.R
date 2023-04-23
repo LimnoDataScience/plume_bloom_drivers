@@ -88,12 +88,14 @@ p1_download <- list(
   
   tar_target(p1_prism_dir, '1_download/prism_data'),
   tar_target(p1_prism_vars, c('tmean', 'ppt')),
+  tar_target(p1_prism_dates, seq(from = as.Date("1981-01-01"), 
+                                 to = as.Date("2022-09-30"), by = "days")),
   
   # Group the dates so that we can query individually and
   # therefore rebuild only dates that don't work, but not
   # store thousands of dynamic branches
   tar_group_count(p1_prism_download_batches, 
-                  tibble(date = p2_prism_dates),
+                  tibble(date = p1_prism_dates),
                   count = 20),
   
   tar_target(p1_prism_files, {
@@ -122,5 +124,11 @@ p1_download <- list(
   # not considered "complete" and thus will try to rebuild the branch that
   # errored the next time the pipeline is built.
   error = "null")
+  
+  # If you download the zip of all the pre-downloaded prism data, uncomment
+  # this target and comment out the one above instead. Make sure you 
+  # unzip the files and place them in `1_download/prism_data/`
+  # tar_target(p1_prism_files, 
+  #            list.files('1_download/prism_data'))
   
 )
