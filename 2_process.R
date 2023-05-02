@@ -71,11 +71,12 @@ p2_process <- list(
              p2_lake_superior_watershed_filt %>% 
                st_union() %>% st_as_sf()),
   
-  # Create a grid of 4km cells across the AOI watersheds (PRISM data come in 4 km)
+  # Create a grid of 10km cells across the AOI watersheds (PRISM data come in 
+  # 4 km but that resolution might be too fine to process for now)
   tar_target(p2_lake_superior_watershed_grid, 
              p2_lake_superior_watershed_dissolved %>% 
                # Cellsize is in meters because of the projection we are in
-               st_make_grid(cellsize=4000) %>% 
+               st_make_grid(cellsize=10000) %>% 
                st_as_sf() %>% 
                st_filter(p2_lake_superior_watershed_dissolved, 
                          .predicate = st_intersects)),
