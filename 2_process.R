@@ -54,14 +54,43 @@ p2_process <- list(
   # the water (and I assume there is some sort of water masking?)
   # Also, need to see grid cell size compared to PRISM resolution
   # because some seem like they are duplicates.
-  tar_target(p2_lake_superior_watershed_filt, 
-             p1_lake_superior_watershed_sf %>% 
-               # Transform to 4326 (should match PRISM that way)
-               st_transform(crs=st_crs(p1_lake_superior_sf)) %>% 
-               st_make_valid() %>% 
-               # Filter to only subwatersheds within 5 miles of the AOI bbox
-               st_filter(p1_lake_superior_sf, .predicate = st_is_within_distance, 
-                         dist = 1609*5)),
+  tar_target(p2_lake_superior_watershed_filt, {
+    # Transform Lake Superior grid shape before using in filter
+    p1_lake_superior_sf_transf <- p1_lake_superior_sf %>% 
+      st_transform(crs = st_crs(p1_lake_superior_watershed_sf))
+    
+    # Filter to only subwatersheds within 5 miles of the AOI bbox
+    p1_lake_superior_watershed_sf %>%
+      st_filter(p1_lake_superior_sf_transf, 
+                .predicate = st_is_within_distance, 
+                dist = 1609*5)
+  }),
+  
+  # Collapse subwatersheds into a single shape
+  tar_target(p2_lake_superior_watershed_dissolved, 
+             p2_lake_superior_watershed_filt %>% 
+               st_union() %>% st_as_sf()),
+  
+  # Create a grid of 4km cells across the AOI watersheds (PRISM data come in 4 km)
+  tar_target(p2_lake_superior_watershed_grid, 
+             p2_lake_superior_watershed_dissolved %>% 
+               # Cellsize is in meters because of the projection we are in
+               st_make_grid(cellsize=4000) %>% 
+               st_as_sf() %>% 
+               st_filter(p2_lake_superior_watershed_dissolved, 
+                         .predicate = st_intersects)),
+  
+  # Convert cell polygons to cell centroids in CRS=4326 so that we can
+  # extract the matching PRISM data for each cell.
+  tar_target(p2_lake_superior_watershed_grid_centers, 
+             # Get the center of each cell and then convert to a table
+             p2_lake_superior_watershed_grid %>% 
+               st_transform(crs=4326) %>% 
+               st_centroid() %>% 
+               st_coordinates() %>% 
+               as_tibble() %>% 
+               setNames(c('longitude', 'latitude')) %>% 
+               mutate(cell_no = row_number())),
   
   # For a given lat/long, use `prism` fxns to extract timeseries
   tar_target(p2_prism_plots, {
