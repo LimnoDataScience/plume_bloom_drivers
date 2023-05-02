@@ -54,6 +54,14 @@ p2_process <- list(
   # the water (and I assume there is some sort of water masking?)
   # Also, need to see grid cell size compared to PRISM resolution
   # because some seem like they are duplicates.
+  tar_target(p2_lake_superior_watershed_filt, 
+             p1_lake_superior_watershed_sf %>% 
+               # Transform to 4326 (should match PRISM that way)
+               st_transform(crs=st_crs(p1_lake_superior_sf)) %>% 
+               st_make_valid() %>% 
+               # Filter to only subwatersheds within 5 miles of the AOI bbox
+               st_filter(p1_lake_superior_sf, .predicate = st_is_within_distance, 
+                         dist = 1609*5)),
   
   # For a given lat/long, use `prism` fxns to extract timeseries
   tar_target(p2_prism_plots, {

@@ -84,6 +84,11 @@ p1_download <- list(
       setNames(c('longitude', 'latitude')) %>% 
       mutate(cell_no = row_number())),
 
+  ##### Read in the Lake Superior watershed shapes #####
+  
+  tar_target(p1_lake_superior_watershed_shp, '1_download/in/LakeSuperiorWatershed.shp', format="file"),
+  tar_target(p1_lake_superior_watershed_sf, st_read(p1_lake_superior_watershed_shp)),
+  
   ##### Download the PRISM meteo data #####
   
   tar_target(p1_prism_dir, '1_download/prism_data'),
