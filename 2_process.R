@@ -73,21 +73,26 @@ p2_process <- list(
   
   # Create a grid of 10km cells across the AOI watersheds (PRISM data come in 
   # 4 km but that resolution might be too fine to process for now)
-  tar_target(p2_lake_superior_watershed_grid, 
+  tar_target(p2_lake_superior_watershed_grid_all, 
              p2_lake_superior_watershed_dissolved %>% 
                # Cellsize is in meters because of the projection we are in
                st_make_grid(cellsize=10000) %>% 
-               st_as_sf() %>% 
+               st_as_sf()),
+  
+  # Convert cell polygons to cell centroids then filter to keep only those 
+  # with centroids that intersect the watershed shape
+  tar_target(p2_lake_superior_watershed_grid_centers_sf,
+             # Get the center of each cell and filter
+             p2_lake_superior_watershed_grid_all %>% 
+               st_centroid() %>% 
                st_filter(p2_lake_superior_watershed_dissolved, 
                          .predicate = st_intersects)),
   
-  # Convert cell polygons to cell centroids in CRS=4326 so that we can
-  # extract the matching PRISM data for each cell.
-  tar_target(p2_lake_superior_watershed_grid_centers, 
-             # Get the center of each cell and then convert to a table
-             p2_lake_superior_watershed_grid %>% 
+  # Convert cell centroids to CRS=4326 so that we can extract the matching 
+  # PRISM data for each cell.
+  tar_target(p2_lake_superior_watershed_grid_centers_tbl, 
+             p2_lake_superior_watershed_grid_centers_sf %>% 
                st_transform(crs=4326) %>% 
-               st_centroid() %>% 
                st_coordinates() %>% 
                as_tibble() %>% 
                setNames(c('longitude', 'latitude')) %>% 
