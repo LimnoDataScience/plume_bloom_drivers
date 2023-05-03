@@ -104,13 +104,13 @@ p2_process <- list(
     # if they change.
     p1_prism_files
     extract_prism_at_location(
-      lat = p1_lake_superior_grid_centers$latitude,
-      lon = p1_lake_superior_grid_centers$longitude,
+      lat = p2_lake_superior_watershed_grid_centers_tbl$latitude,
+      lon = p2_lake_superior_watershed_grid_centers_tbl$longitude,
       prism_var = p1_prism_vars,
       prism_dates = p1_prism_download_batches$date,
       prism_dir = p1_prism_dir)
   }, 
-  pattern = cross(p1_lake_superior_grid_centers, p1_prism_vars,
+  pattern = cross(p2_lake_superior_watershed_grid_centers_tbl, p1_prism_vars,
                   p1_prism_download_batches),
   iteration = "list"),
   
