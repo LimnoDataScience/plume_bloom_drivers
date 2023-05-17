@@ -21,10 +21,7 @@ p4_visualize <- list(
   
   tar_target(p4_prism_summary, {
     p2_prism_data %>% 
-      left_join(p1_lake_superior_grid_centers) %>% 
-      # These cells all have NA (assuming that these
-      # are NA because the centroids are over water)
-      filter(!cell_no %in% c(4, 6, 8, 11, 12)) %>% 
+      left_join(p2_lake_superior_watershed_grid_centers_tbl) %>% 
       ggplot(aes(x = date, y = value, 
                  color = cell_no)) + 
       geom_point() +
