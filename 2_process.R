@@ -121,6 +121,7 @@ p2_process <- list(
   
   # Get the prism data from the files for each of the lat/longs, variables, and 
   # dates. Note that this is a lengthy step because of using the `cross` pattern.
+  # Over 3 hrs with 20 works, 2 variables, 20 date batches, and 37 grid cells 
   tar_target(p2_prism_data, {
     # Make this target dependent on the prism files so that
     # it will build if they change.
