@@ -19,15 +19,14 @@ p4_visualize <- list(
       ylab('Pixel count') + xlab('Year')
   }),
   
-  tar_target(p4_prism_summary, {
-    p2_prism_data %>% 
-      left_join(p2_lake_superior_watershed_grid_centers_tbl) %>% 
-      ggplot(aes(x = date, y = value, 
-                 color = cell_no)) + 
-      geom_point() +
-      scico::scale_color_scico(begin = 0.15, end = 0.85,
-                               palette = "batlow") +
-      facet_grid(cell_no ~ variable, scales = 'free')
+  tar_target(p4_prism_summary_timeseries, {
+    p2_prism_data_huc %>% 
+      ggplot(aes(x = date, y = value_huc, color = huc)) + 
+      geom_point(alpha = 0.25, shape=20, stroke=NA, size=2) +
+      scico::scale_color_scico_d(begin = 0.15, end = 0.85,  
+                                 palette = "batlow") +
+      facet_grid(variable ~ ., scales = 'free_y') +
+      theme_bw()
   })
   
 )
