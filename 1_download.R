@@ -89,6 +89,29 @@ p1_download <- list(
   tar_target(p1_lake_superior_watershed_shp, '1_download/in/LakeSuperiorWatershed.shp', format="file"),
   tar_target(p1_lake_superior_watershed_sf, st_read(p1_lake_superior_watershed_shp)),
   
+  ##### Download the HUCs per site outlet #####
+  
+  # Manual table for which sites to include and their names
+  tar_target(p1_nwis_sites, 
+             tibble(river = c('Nemadji', 'Bois Brule', 'Siskiwit'),
+                    nwis_site = c('04024454', '04026005', '04026160'))),
+  
+  # Find lat/long per site and then download associated HUC8. Note that we want 
+  # HUC10s, but `nhdplusTools` won't allow you to get HUC10s from site ids alone.
+  tar_target(p1_nwis_sites_sf, 
+             dataRetrieval::readNWISsite(p1_nwis_sites$nwis_site) %>% 
+               st_as_sf(coords = c('dec_long_va', 'dec_lat_va'), crs=4326)),
+  tar_target(p1_huc08_nwis_sites, 
+             get_huc(id = unique(p1_nwis_sites_sf$huc_cd), type='huc08')),
+  
+  # Use the HUC8 shape to pull the appropriate HUC10s, then filter to just those
+  # that contain the NWIS site point. 
+  tar_target(p1_huc10_nwis_sites, 
+             get_huc(AOI = p1_huc08_nwis_sites, type='huc10') %>% 
+               # TODO: Not sure about routing at this time. It could be that 
+               # some feed into the next one and more should be included.
+               st_filter(p1_nwis_sites_sf, .predicate = st_contains)),
+  
   ##### Download the PRISM meteo data #####
   
   tar_target(p1_prism_dir, '1_download/prism_data'),
