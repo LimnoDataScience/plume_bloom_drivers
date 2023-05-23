@@ -33,7 +33,26 @@ summarize_raster_class_counts <- function(raster_list) {
     select(mission, date, class = value, count)
 }
 
-extract_prism_at_location <- function(lat, lon, prism_var, prism_dates, prism_dir) {
+# Convert the `prism` plot objects into a single data frame, including the HUC info
+get_prism_data_at_huc_centers <- function(huc_latlong_table, prism_var, prism_dates, prism_dir) {
+  
+  # Extracting data using the prism package, gives you a plot for some reason...
+  prism_plot_info <- extract_prism_plot_at_location(
+    lat = huc_latlong_table$latitude,
+    lon = huc_latlong_table$longitude,
+    prism_var, prism_dates, prism_dir)
+  
+  # Pull out the data itself and add the HUC info back in.
+  prism_data <- prism_plot_info$data %>% 
+    left_join(huc_latlong_table, by = c('latitude', 'longitude'))
+  
+  return(prism_data)
+}
+
+# For a given lat/long, use `prism` fxns to extract timeseries. Note
+# that the `prism` pkg functions return a plot object and data must be
+# extracted from that separately.
+extract_prism_plot_at_location <- function(lat, lon, prism_var, prism_dates, prism_dir) {
   
   # Set the prism archive location
   prism_set_dl_dir(prism_dir)

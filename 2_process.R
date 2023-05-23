@@ -103,10 +103,8 @@ p2_process <- list(
   # with centroids that intersect the watershed shape
   tar_target(p2_lake_superior_watershed_grid_centers_sf,
              # Get the center of each cell and filter
-             p2_lake_superior_watershed_grid_all %>% 
-               st_centroid() %>% 
-               st_filter(p2_lake_superior_watershed_dissolved, 
-                         .predicate = st_intersects)),
+             p2_lake_superior_watershed_grid_sf %>% 
+               st_centroid()),
   
   # Convert cell centroids to CRS=4326 so that we can extract the matching 
   # PRISM data for each cell.
@@ -116,16 +114,19 @@ p2_process <- list(
                st_coordinates() %>% 
                as_tibble() %>% 
                setNames(c('longitude', 'latitude')) %>% 
-               mutate(cell_no = row_number())),
+               mutate(cell_no = row_number()) %>% 
+               # Add corresponding huc and huc_frac columns
+               bind_cols(st_drop_geometry(p2_lake_superior_watershed_grid_centers_sf))),
   
-  # For a given lat/long, use `prism` fxns to extract timeseries
-  tar_target(p2_prism_plots, {
-    # Make this target dependent on the prism files so that it will
-    # if they change.
+  
+  # Get the prism data from the files for each of the lat/longs, variables, and 
+  # dates. Note that this is a lengthy step because of using the `cross` pattern.
+  tar_target(p2_prism_data, {
+    # Make this target dependent on the prism files so that
+    # it will build if they change.
     p1_prism_files
-    extract_prism_at_location(
-      lat = p2_lake_superior_watershed_grid_centers_tbl$latitude,
-      lon = p2_lake_superior_watershed_grid_centers_tbl$longitude,
+    get_prism_data_at_huc_centers(
+      huc_latlong_table = p2_lake_superior_watershed_grid_centers_tbl,
       prism_var = p1_prism_vars,
       prism_dates = p1_prism_download_batches$date,
       prism_dir = p1_prism_dir)
@@ -133,10 +134,5 @@ p2_process <- list(
   pattern = cross(p2_lake_superior_watershed_grid_centers_tbl, p1_prism_vars,
                   p1_prism_download_batches),
   iteration = "list"),
-  
-  # Convert the `prism` plot objects into a single data frame
-  # with all PRISM vars
-  tar_target(p2_prism_data, p2_prism_plots$data, 
-             pattern = map(p2_prism_plots))
   
 )
