@@ -133,6 +133,11 @@ p2_process <- list(
   }, 
   pattern = cross(p2_lake_superior_watershed_grid_centers_tbl, p1_prism_vars,
                   p1_prism_download_batches),
-  iteration = "list"),
+  # Define this target as one that can be done in parallel when `tar_make_clustermq(workers = X)` 
+  # is called. The default for other targets in this pipeline is NOT to parallelize.
+  # Note that on Lindsay's computer, 20 workers seems to be the best option.
+  deployment = "worker", 
+  # Management parallel computing worker data storage to speed up performance
+  storage = "worker", retrieval = "worker"),
   
 )

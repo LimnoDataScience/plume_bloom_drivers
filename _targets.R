@@ -3,7 +3,8 @@ library(targets)
 library(tarchetypes)
 
 # Stop annoying messaging when it downloads each file
-options(googledrive_quiet = TRUE) 
+options(googledrive_quiet = TRUE,
+        clustermq.scheduler = "multiprocess") 
 
 tar_option_set(packages = c(
   'googledrive',
@@ -13,7 +14,7 @@ tar_option_set(packages = c(
   'sf',
   'tidyverse',
   'yaml'
-), format='qs')
+), format='qs', deployment='main')
 
 source('1_download.R')
 source('2_process.R')
