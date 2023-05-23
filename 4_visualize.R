@@ -27,6 +27,16 @@ p4_visualize <- list(
                                  palette = "batlow") +
       facet_grid(variable ~ ., scales = 'free_y') +
       theme_bw()
+  }),
+  
+  tar_target(p4_prism_summary_boxes, {
+    p2_prism_data_huc %>% 
+      ggplot(aes(x = date, y = value_huc, fill = huc)) + 
+      geom_boxplot() +
+      scico::scale_fill_scico_d(begin = 0.15, end = 0.85, 
+                                palette = "batlow") +
+      facet_grid(variable ~ ., scales = 'free_y') +
+      theme_bw()
   })
   
 )
