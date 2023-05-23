@@ -79,6 +79,26 @@ p2_process <- list(
                st_make_grid(cellsize=10000) %>% 
                st_as_sf()),
   
+  # Subset to grid cells that intersect the HUC watersheds and calculate
+  # the fraction of cell that overlaps the watershed polygon. That fraction
+  # will be used to calculate contributing precip later.
+  tar_target(p2_lake_superior_watershed_grid_sf, {
+    huc10_sf_transf <- st_transform(p1_huc10_nwis_sites, crs=st_crs(p1_lake_superior_watershed_sf))
+    grids_over_hucs <- p2_lake_superior_watershed_grid_all %>% 
+      st_filter(huc10_sf_transf, .predicate = st_intersects)
+    # For each HUC, identify the cells that intersect with them
+    # and create grid cell sf with the fractions and HUC as a column.
+    grids_over_hucs_info <- huc10_sf_transf %>% 
+      split(.$huc10) %>% 
+      purrr::map(~{
+        grid_cells <- grids_over_hucs %>% st_filter(.x, .predicate = st_intersects)
+        grid_cells_adjs <- st_intersection(grid_cells, .x)
+        grid_cell_frac <- units::drop_units(st_area(grid_cells_adjs)/st_area(grid_cells))
+        grid_cells %>% mutate(huc = .x$huc10, huc_frac = grid_cell_frac)
+      }) %>% bind_rows() %>% rename(geometry = x)
+    return(grids_over_hucs_info)
+  }),
+  
   # Convert cell polygons to cell centroids then filter to keep only those 
   # with centroids that intersect the watershed shape
   tar_target(p2_lake_superior_watershed_grid_centers_sf,
