@@ -140,4 +140,7 @@ p2_process <- list(
   # Management parallel computing worker data storage to speed up performance
   storage = "worker", retrieval = "worker"),
   
+  # Summarize the data per HUC
+  tar_target(p2_prism_data_huc, summarize_meteo_data_by_huc(p2_prism_data))
+  
 )

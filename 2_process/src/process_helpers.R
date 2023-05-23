@@ -77,3 +77,32 @@ extract_prism_plot_at_location <- function(lat, lon, prism_var, prism_dates, pri
   
   return(var_pd_plot)
 }
+
+# Summarize daily meteo values per grid cell into a daily value per huc
+summarize_meteo_data_by_huc <- function(meteo_data) {
+  meteo_data %>%
+    split(.$variable) %>% 
+    purrr::map(~{
+      cur_var <- unique(.x$variable)
+      if(cur_var == 'tmean') {
+        # If the variable is `tmean`, just take the mean of all the cells per huc
+        .x %>% 
+          filter(variable == cur_var) %>% 
+          group_by(huc, variable, date) %>% 
+          summarize(value_huc = mean(value, na.rm=TRUE), .groups="keep") %>% 
+          ungroup() 
+      } else if(cur_var == 'ppt') {
+        # If the variable is `ppt`, then we need to sum the precipitation values
+        # of each cell based on the fraction of the cell that is in the HUC
+        .x %>% 
+          filter(variable == cur_var) %>% 
+          mutate(value_adj = value*huc_frac) %>% 
+          group_by(huc, variable, date) %>% 
+          summarize(value_huc = sum(value_adj, na.rm=TRUE), .groups="keep") %>% 
+          ungroup() 
+      } else {
+        stop(sprintf('`summarize_meteo_data_by_huc()` needs to be updated to include `%s`', cur_var))
+      }
+    }) %>% bind_rows()
+}
+
