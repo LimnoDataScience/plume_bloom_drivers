@@ -103,6 +103,28 @@ summarize_meteo_data_by_huc <- function(meteo_data) {
       } else {
         stop(sprintf('`summarize_meteo_data_by_huc()` needs to be updated to include `%s`', cur_var))
       }
-    }) %>% bind_rows()
+    }) %>% bind_rows() %>% 
+    # Add some helpful columns for dates
+    mutate(year = year(date),
+           # Round *down* to decade (e.g. 1989 = 1980s, 1992 = 1990s)
+           decade = sprintf('%ss', year - (year %% 10)),
+           month = month(date)) %>% 
+    mutate(season = month_to_season(month)) %>% 
+    relocate(date, value_huc, .after = season)
 }
 
+# Pass in a vector of month numbers (1 thru 12) and get a 
+# vector of the same size with the season back.
+month_to_season <- function(month_num) {
+  # Create vector with season as the value and month number as the name
+  month_season <- setNames(rep(c("Winter", "Spring", "Summer", "Fall"), each = 3), c(12, 1:11))
+  
+  # Arrange so that DEC is in the 12th spot
+  month_season <- month_season[order(as.numeric(names(month_season)))] 
+    
+  # Pull out the season based on month number as the indices
+  season_out <- month_season[month_num]
+  names(season_out) <- NULL # Drop the names attribute
+  
+  return(season_out)
+}
