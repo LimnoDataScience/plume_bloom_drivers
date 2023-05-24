@@ -3,12 +3,16 @@ Using classified raster images and meteo drivers to try to better understand wha
 
 ## Building the pipeline
 
-This pipeline is setup to download, process, and run models for detecting blooms and plumes. It is structured as a [`{{targets}}`](https://docs.ropensci.org/targets/) pipeline so that the workflow is easily reproducible and can be followed. The pipeline and workflow be run easily using `tar_make()`. The first time you run this, you may get errors about missing packages. Install those and then try again.
+This pipeline is setup to download, process, and run models for detecting blooms and plumes. It is structured as a [`{{targets}}`](https://docs.ropensci.org/targets/) pipeline so that the workflow is easily reproducible and can be followed. The pipeline and workflow be run easily using `tar_make()`. The first time you run this, you may get errors about missing packages. Install those and then try again. You should read the following caveats about some of the data inputs/downloads within the pipeline *before* attempting to build.
+
+### Meteorological data from PRISM
 
 The meteorological driver data from [PRISM](https://prism.oregonstate.edu/) does take a long time to download and process. Due to this, we have two spots in the pipeline where pre-built data can be used to skip over those steps.
 
 1. If you have access to the zip file of the pre-downloaded, raw meteorological data on Box, comment out the `p1_prism_files` target in `1_download.R` and uncomment the target with the same name that is set up below it. You will need to download the zip file from Box and unzip the files to the `1_download/prism_data/` directory before being able to build the full pipeline.
 1. If you have access to the CSV file of processed meteorological data on Box, comment out the `p2_prism_data_huc` target in `2_process.R` and uncomment the target with the same name that is set up below it. You will need to download the CSV file from Box and move it to the `2_process/in/` directory before being able to build the full pipeline.
+
+### Classified raster data from Google Drive
 
 At this time, the raster files of classified imagery are kept in a Google Drive folder where you need to have specific access. The data may be released in the future, which would make this step easier. For now, you need to follow the steps below in order to authenticate to Google Drive when running `tar_make()`.
 
@@ -16,6 +20,10 @@ At this time, the raster files of classified imagery are kept in a Google Drive 
 2. Copy-paste this code into that file: `gd_email: 'YOUR_EMAIL@some.service'`
 3. Change the `YOUR_EMAIL@some.service` part of the file to match your own email that you will use to access the data.
 4. Then, try running `tar_make()`.
+
+### Lake Superior spatial data
+
+For now, the Lake Superior shapefile `LakeSuperiorWatershed.shp` is only available to our internal team via Box. You should download the spatial zip called `LakeSuperiorWatershed.zip` from Box (includes all associated metadata files) and unzip to the folder `1_download/in`. This will ensure that the target in `1_download.R` called `p1_lake_superior_watershed_shp` will successfully find the file it needs.
 
 ## Finding and viewing outputs
 
