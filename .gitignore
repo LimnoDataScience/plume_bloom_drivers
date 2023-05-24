@@ -41,7 +41,8 @@ vignettes/*.pdf
 # Targets pipeline files
 gd_config.yml
 _targets/*
+1_download/in/LakeSuperior*
 1_download/out/*
 1_download/prism_data/*
+2_process/in/prism_data_huc.csv
 !*/*/.placeholder
-
