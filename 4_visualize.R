@@ -19,18 +19,36 @@ p4_visualize <- list(
       ylab('Pixel count') + xlab('Year')
   }),
   
-  tar_target(p4_prism_summary, {
-    p2_prism_data %>% 
-      left_join(p1_lake_superior_grid_centers) %>% 
-      # These cells all have NA (assuming that these
-      # are NA because the centroids are over water)
-      filter(!cell_no %in% c(4, 6, 8, 11, 12)) %>% 
-      ggplot(aes(x = date, y = value, 
-                 color = cell_no)) + 
-      geom_point() +
-      scico::scale_color_scico(begin = 0.15, end = 0.85,
-                               palette = "batlow") +
-      facet_grid(cell_no ~ variable, scales = 'free')
+  tar_target(p4_prism_summary_timeseries, {
+    p2_prism_data_huc %>% 
+      ggplot(aes(x = date, y = value_huc, color = huc)) + 
+      geom_point(alpha = 0.25, shape=20, stroke=NA, size=2) +
+      scico::scale_color_scico_d(begin = 0.15, end = 0.85,  
+                                 palette = "batlow") +
+      facet_grid(variable ~ ., scales = 'free_y', switch = "y",
+                 labeller = as_labeller(c(tmean = "Mean temperature, deg C", 
+                                          ppt = "Daily precipitation, mm"))) +
+      theme_bw() + ylab("") + xlab("Date") +
+      theme(strip.background = element_blank(),
+            strip.placement = "outside",
+            strip.text.y = element_text(size = 15))
+  }),
+  
+  tar_target(p4_prism_summary_boxes, {
+    p2_prism_data_huc %>% 
+      # Log the precipitation
+      mutate(value_huc = ifelse(variable == "ppt", log10(value_huc), value_huc)) %>% 
+      ggplot(aes(x = decade, y = value_huc, fill = huc)) + 
+      geom_boxplot() +
+      scico::scale_fill_scico_d(begin = 0.15, end = 0.85, 
+                                palette = "batlow") +
+      facet_grid(variable ~ ., scales = 'free_y', switch = "y",
+                 labeller = as_labeller(c(tmean = "Mean temperature, deg C", 
+                                          ppt = "Logged daily precipitation, mm"))) +
+      theme_bw() + ylab("") + xlab("Decade") +
+      theme(strip.background = element_blank(),
+            strip.placement = "outside",
+            strip.text.y = element_text(size = 15))
   })
   
 )
