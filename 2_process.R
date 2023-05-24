@@ -144,4 +144,9 @@ p2_process <- list(
   # Summarize the data per HUC
   tar_target(p2_prism_data_huc, summarize_meteo_data_by_huc(p2_prism_data))
   
+  # If you downloaded the CSV file of all pre-processed PRISM data, uncomment
+  # this target and comment out the one above instead. Make sure you already
+  # placed the file in `2_process/in/` before building the pipeline.
+  # tar_target(p2_prism_data_huc, read_csv('2_process/in/prism_data_huc.csv'))
+  
 )
