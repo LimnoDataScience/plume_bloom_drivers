@@ -107,10 +107,14 @@ p1_download <- list(
   # Use the HUC8 shape to pull the appropriate HUC10s, then filter to just those
   # that contain the NWIS site point. 
   tar_target(p1_huc10_nwis_sites, 
-             get_huc(AOI = p1_huc08_nwis_sites, type='huc10') %>% 
+             p1_huc08_nwis_sites %>% 
+               split(.$id) %>% 
+               purrr::map(~get_huc(AOI = .x, type='huc10') %>% 
                # TODO: Not sure about routing at this time. It could be that 
                # some feed into the next one and more should be included.
-               st_filter(p1_nwis_sites_sf, .predicate = st_contains)),
+               st_filter(p1_nwis_sites_sf, .predicate = st_contains)) %>% 
+               bind_rows() %>% 
+               distinct()),
   
   ##### Download the PRISM meteo data #####
   
