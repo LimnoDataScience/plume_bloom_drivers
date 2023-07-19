@@ -31,6 +31,16 @@ p4_visualize <- list(
       theme_void() + ggtitle('Observed bloom locations in our defined AOI')
   }),
   
+  tar_target(p4_obs_blooms_timeseries, {
+    ggplot(p2_obs_blooms_details, aes(x = `Start Date`, 
+                                      y = Verified_cyanos,
+                                      color = Verified_cyanos)) +
+      geom_jitter(size=2) + 
+      theme_bw() + 
+      ggtitle('Jittered timeline of observed blooms in Lake Superior',
+              subtitle = 'Separated by whether or not cyanos was verified in a microscope')
+  }),
+  
   ##### PRISM climate driver summary figures #####
   
   tar_target(p4_prism_summary_timeseries, {
