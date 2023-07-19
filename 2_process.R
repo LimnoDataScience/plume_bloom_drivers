@@ -34,19 +34,18 @@ p2_process <- list(
              # Landsat 7 striping issue.
   ),
   
-  ##### Process GEE mission-dates to prepare for PRISM query #####
+  ##### Load and process observed blooms spreadsheet #####
   
-  tar_target(p2_mission_dates_aprnov, 
-             read_csv(p1_gd_missiondates_csv) %>% 
-               # Keep only dates between April and November, as B does here:
-               # https://github.com/rossyndicate/Superior-Plume-Bloom/blob/main/eePlumB/B_process_LS_mission-date/2_processMissionDateList.Rmd#L48-L55
-               mutate(month = lubridate::month(DATE_ACQUIRED)) %>% 
-               filter(month >=4, month <= 11) %>% 
-               pull(DATE_ACQUIRED) %>% 
-               # Only need the unique dates, not duplicates per mission
-               unique() %>% 
-               # Sort is needed because B randomized the mission-dates for eePlumb workflow
-               sort()),
+  tar_target(p2_obs_blooms_details, clean_bloom_history(p1_obs_blooms_xlsx)),
+  tar_target(p2_obs_blooms_sf, {
+    p2_obs_blooms_details %>% 
+      select(Year, `Start Date`, `End Date`, Latitude, Longitude, Verified_cyanos) %>% 
+      st_as_sf(coords = c('Longitude', 'Latitude'), crs=4326) %>% 
+      # Remove observations outside of our AOI
+      st_crop(p1_lake_superior_box_sf) %>% 
+      # Transform to match other sf object projections
+      st_transform(crs = st_crs(p1_lake_superior_watershed_sf))
+  }),
   
   ##### Read PRISM files and load into tibbles #####
   
@@ -56,12 +55,12 @@ p2_process <- list(
   # because some seem like they are duplicates.
   tar_target(p2_lake_superior_watershed_filt, {
     # Transform Lake Superior grid shape before using in filter
-    p1_lake_superior_sf_transf <- p1_lake_superior_sf %>% 
+    p1_lake_superior_box_sf_transf <- p1_lake_superior_box_sf %>% 
       st_transform(crs = st_crs(p1_lake_superior_watershed_sf))
     
     # Filter to only subwatersheds within 5 miles of the AOI bbox
     p1_lake_superior_watershed_sf %>%
-      st_filter(p1_lake_superior_sf_transf, 
+      st_filter(p1_lake_superior_box_sf_transf, 
                 .predicate = st_is_within_distance, 
                 dist = 1609*5)
   }),

@@ -33,6 +33,37 @@ summarize_raster_class_counts <- function(raster_list) {
     select(mission, date, class = value, count)
 }
 
+# Read in and process the manually generated bloom observation spreadsheet from Kait Reinl
+clean_bloom_history <- function(file_in) {
+  
+  # Initially load the excel spreadsheet in order to get columns to use after 
+  # skipping first two data rows (row 1 = header above column names, skip it)
+  obs_blooms_raw <- read_excel(file_in, skip = 1, sheet = 'BloomHistory')
+  
+  # Read without the 'circa' observations from 1968 & 1995 (random header + 
+  # col names row + the two old observations = 4 to skip)
+  obs_blooms_clean <- read_excel(file_in, 
+                           skip = 4, sheet = 'BloomHistory',
+                           col_names = names(obs_blooms_raw),
+                           na = "n/a") %>% 
+    # Remove spaces and headers between the secondary tables 
+    filter(!is.na(Year),
+           !Year %in% c("Inland lake reports", 
+                        "Benthic bloom reports",
+                        "Green water (no surface scum)")) %>% 
+    # Rather than reformat the Year column, just delete and
+    # add back using the `Start Date` column
+    select(-Year) %>% 
+    mutate(Year = year(`Start Date`), .before = `Start Date`) %>% 
+    # Remove any data that doesn't have a location listed
+    filter(!is.na(Longitude), !is.na(Latitude)) %>% 
+    # Harmonize the 'verified' column - just leave T/F for whether it was verified or not (NA = FALSE)
+    mutate(Verified_cyanos = grepl('^(v|V)erified', `Verified cyanos with microscope?`), 
+           .after = `Water Body Name`)
+  
+  return(obs_blooms_clean)
+}
+
 # Convert the `prism` plot objects into a single data frame, including the HUC info
 get_prism_data_at_huc_centers <- function(huc_latlong_table, prism_var, prism_dates, prism_dir) {
   
