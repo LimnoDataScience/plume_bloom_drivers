@@ -12,6 +12,7 @@ tar_option_set(packages = c(
   'nhdplusTools',
   'prism',
   'raster',
+  'readxl',
   'sf',
   'tidyverse',
   'yaml'

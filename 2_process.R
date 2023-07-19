@@ -34,6 +34,10 @@ p2_process <- list(
              # Landsat 7 striping issue.
   ),
   
+  ##### Load and process observed blooms spreadsheet #####
+  
+  tar_target(p2_obs_blooms, clean_bloom_history(p1_obs_blooms_xlsx)),
+  
   ##### Read PRISM files and load into tibbles #####
   
   # TODO: some grid cells return NAs because the centroid is over 
