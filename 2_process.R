@@ -36,7 +36,16 @@ p2_process <- list(
   
   ##### Load and process observed blooms spreadsheet #####
   
-  tar_target(p2_obs_blooms, clean_bloom_history(p1_obs_blooms_xlsx)),
+  tar_target(p2_obs_blooms_details, clean_bloom_history(p1_obs_blooms_xlsx)),
+  tar_target(p2_obs_blooms_sf, {
+    p2_obs_blooms_details %>% 
+      select(Year, `Start Date`, `End Date`, Latitude, Longitude, Verified_cyanos) %>% 
+      st_as_sf(coords = c('Longitude', 'Latitude'), crs=4326) %>% 
+      # Remove observations outside of our AOI
+      st_crop(p1_lake_superior_box_sf) %>% 
+      # Transform to match other sf object projections
+      st_transform(crs = st_crs(p1_lake_superior_watershed_sf))
+  }),
   
   ##### Read PRISM files and load into tibbles #####
   
