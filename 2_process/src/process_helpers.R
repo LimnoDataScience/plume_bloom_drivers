@@ -54,7 +54,9 @@ clean_bloom_history <- function(file_in) {
     # Rather than reformat the Year column, just delete and
     # add back using the `Start Date` column
     select(-Year) %>% 
-    mutate(Year = year(`Start Date`), .before = `Start Date`)
+    mutate(Year = year(`Start Date`), .before = `Start Date`) %>% 
+    # Remove any data that doesn't have a location listed
+    filter(!is.na(Longitude), !is.na(Latitude)) 
   
   return(obs_blooms_clean)
 }
