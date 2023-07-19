@@ -57,7 +57,7 @@ p1_download <- list(
     return(local_file_info$local_path)
   }, format = "file"),
   
-  tar_target(p1_lake_superior_sf, {
+  tar_target(p1_lake_superior_box_sf, {
     # Pulled the bounding box for our Lake Superior AOI:
     # https://github.com/rossyndicate/Superior-Plume-Bloom/blob/efa1bdc644611ee97c2e1e0c3bf0cfc4a7ca1955/eePlumB/A_PrepAOI/TileAOI.Rmd#L31-L52
     sup_box <- tibble(ymin = 46.5, ymax = 47.3,  xmin = -92.2,xmax = -90.1)
@@ -71,7 +71,7 @@ p1_download <- list(
   tar_target(p1_lake_superior_grid_sf, 
     # Now make the grid using that box. To do this, I borrowed code from:
     # https://github.com/rossyndicate/Superior-Plume-Bloom/blob/efa1bdc644611ee97c2e1e0c3bf0cfc4a7ca1955/eePlumB/A_PrepAOI/TileAOI.Rmd#L31-L52
-    st_make_grid(p1_lake_superior_sf, 
+    st_make_grid(p1_lake_superior_box_sf, 
                  cellsize = c(0.55, 0.3)) # units are degrees
   ),
     

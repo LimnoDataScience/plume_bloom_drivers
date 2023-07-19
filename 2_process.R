@@ -56,12 +56,12 @@ p2_process <- list(
   # because some seem like they are duplicates.
   tar_target(p2_lake_superior_watershed_filt, {
     # Transform Lake Superior grid shape before using in filter
-    p1_lake_superior_sf_transf <- p1_lake_superior_sf %>% 
+    p1_lake_superior_box_sf_transf <- p1_lake_superior_box_sf %>% 
       st_transform(crs = st_crs(p1_lake_superior_watershed_sf))
     
     # Filter to only subwatersheds within 5 miles of the AOI bbox
     p1_lake_superior_watershed_sf %>%
-      st_filter(p1_lake_superior_sf_transf, 
+      st_filter(p1_lake_superior_box_sf_transf, 
                 .predicate = st_is_within_distance, 
                 dist = 1609*5)
   }),
