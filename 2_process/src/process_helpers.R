@@ -56,7 +56,10 @@ clean_bloom_history <- function(file_in) {
     select(-Year) %>% 
     mutate(Year = year(`Start Date`), .before = `Start Date`) %>% 
     # Remove any data that doesn't have a location listed
-    filter(!is.na(Longitude), !is.na(Latitude)) 
+    filter(!is.na(Longitude), !is.na(Latitude)) %>% 
+    # Harmonize the 'verified' column - just leave T/F for whether it was verified or not (NA = FALSE)
+    mutate(Verified_cyanos = grepl('^(v|V)erified', `Verified cyanos with microscope?`), 
+           .after = `Water Body Name`)
   
   return(obs_blooms_clean)
 }
