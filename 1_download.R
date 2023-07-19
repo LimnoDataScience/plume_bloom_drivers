@@ -57,6 +57,8 @@ p1_download <- list(
     return(local_file_info$local_path)
   }, format = "file"),
   
+  ##### Load spatial data for Lake Superior watershed & AOI #####
+  
   tar_target(p1_lake_superior_box_sf, {
     # Pulled the bounding box for our Lake Superior AOI:
     # https://github.com/rossyndicate/Superior-Plume-Bloom/blob/efa1bdc644611ee97c2e1e0c3bf0cfc4a7ca1955/eePlumB/A_PrepAOI/TileAOI.Rmd#L31-L52
@@ -84,8 +86,6 @@ p1_download <- list(
       setNames(c('longitude', 'latitude')) %>% 
       mutate(cell_no = row_number())),
 
-  ##### Read in the Lake Superior watershed shapes #####
-  
   tar_target(p1_lake_superior_watershed_shp, '1_download/in/LakeSuperiorWatershed.shp', format="file"),
   tar_target(p1_lake_superior_watershed_sf, st_read(p1_lake_superior_watershed_shp)),
   
