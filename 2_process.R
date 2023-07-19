@@ -34,20 +34,6 @@ p2_process <- list(
              # Landsat 7 striping issue.
   ),
   
-  ##### Process GEE mission-dates to prepare for PRISM query #####
-  
-  tar_target(p2_mission_dates_aprnov, 
-             read_csv(p1_gd_missiondates_csv) %>% 
-               # Keep only dates between April and November, as B does here:
-               # https://github.com/rossyndicate/Superior-Plume-Bloom/blob/main/eePlumB/B_process_LS_mission-date/2_processMissionDateList.Rmd#L48-L55
-               mutate(month = lubridate::month(DATE_ACQUIRED)) %>% 
-               filter(month >=4, month <= 11) %>% 
-               pull(DATE_ACQUIRED) %>% 
-               # Only need the unique dates, not duplicates per mission
-               unique() %>% 
-               # Sort is needed because B randomized the mission-dates for eePlumb workflow
-               sort()),
-  
   ##### Read PRISM files and load into tibbles #####
   
   # TODO: some grid cells return NAs because the centroid is over 

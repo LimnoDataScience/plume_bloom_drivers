@@ -40,22 +40,18 @@ p1_download <- list(
   }, format = 'file',
   pattern = map(p1_gd_netcdfs)),
   
-  ##### Download the GEE imagery and AOI mission-dates from Google Drive #####
-  
-  # List the files available in this specified folder
-  tar_target(p1_gd_id_missiondates, as_id('1UEEVBlvX7P4H2dtNoX1oj44-Xeyg6x01')),
-  tar_target(p1_gd_missiondates_csv, {
+  # Download the observed blooms dataset
+  tar_target(p1_obs_blooms_xlsx, {
     # Add a dependency on p1_authenticated_user target so that this 
     # builds AFTER the target for authenticated to GH has been run.
-    message(sprintf('Attempting to download a file using permissions for %s', 
-                    p1_authenticated_user$emailAddress))
-    gd_file_info <- drive_get(p1_gd_id_missiondates)
-    local_file_info <- drive_download(
-      p1_gd_id_missiondates,
-      path = sprintf('1_download/out/%s', gd_file_info$name),
-      overwrite=TRUE)
-    return(local_file_info$local_path)
-  }, format = "file"),
+    p1_authenticated_user
+    
+    files_saved_info <- drive_download(
+      as_id('1JPheDfzusaOWRS4Dew9KTnCRAqJSQykV'), 
+      path = '1_download/out/lake_sup_bloom_history.xlsx',
+      overwrite = TRUE)
+    return(files_saved_info$local_path)
+  }, format = 'file'),
   
   ##### Load spatial data for Lake Superior watershed & AOI #####
   
