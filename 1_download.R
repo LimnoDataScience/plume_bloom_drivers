@@ -41,13 +41,21 @@ p1_download <- list(
   pattern = map(p1_gd_netcdfs)),
   
   # Download the observed blooms dataset
+  tar_target(p1_gd_id_obs_blooms, as_id('1JPheDfzusaOWRS4Dew9KTnCRAqJSQykV')),
+  tar_target(p1_obs_blooms_gd_hash, drive_get(p1_gd_id_obs_blooms) %>% 
+               pluck('drive_resource', 1, 'md5Checksum'),
+             # Always ping GD and get the hash of this file in case it changes
+             cue = tar_cue('always')),
   tar_target(p1_obs_blooms_xlsx, {
     # Add a dependency on p1_authenticated_user target so that this 
-    # builds AFTER the target for authenticated to GH has been run.
+    # builds AFTER the target for authenticated to GD has been run.
     p1_authenticated_user
     
+    # Depend on the file hash so that this rebuilds if the GD file changes
+    p1_obs_blooms_gd_hash
+    
     files_saved_info <- drive_download(
-      as_id('1JPheDfzusaOWRS4Dew9KTnCRAqJSQykV'), 
+      p1_gd_id_obs_blooms, 
       path = '1_download/out/lake_sup_bloom_history.xlsx',
       overwrite = TRUE)
     return(files_saved_info$local_path)
