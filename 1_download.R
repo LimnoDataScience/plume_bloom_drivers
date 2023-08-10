@@ -98,7 +98,7 @@ p1_download <- list(
   # Manual table for which sites to include and their names
   tar_target(p1_nwis_sites, 
              tibble(river = c('Nemadji', 'Bois Brule', 'Siskiwit', 'St. Louis'),
-                    nwis_site = c('04024454', '04026005', '04026160', '04024000'))),
+                    nwis_site = c('04024430', '04025500', '04026160', '04024000'))),
   
   # Find lat/long per site and then download associated HUC8. Note that we want 
   # HUC10s, but `nhdplusTools` won't allow you to get HUC10s from site ids alone.
