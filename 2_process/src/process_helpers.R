@@ -55,6 +55,9 @@ clean_bloom_history <- function(file_in) {
     # add back using the `Start Date` column
     select(-Year) %>% 
     mutate(Year = year(`Start Date`), .before = `Start Date`) %>% 
+    # Change the dates to `Date` class rather than `POSIXct`
+    mutate(`Start Date` = as.Date(`Start Date`),
+           `End Date` = as.Date(`End Date`)) %>% 
     # Remove any data that doesn't have a location listed
     filter(!is.na(Longitude), !is.na(Latitude)) %>% 
     # Harmonize the 'verified' column - just leave T/F for whether it was verified or not (NA = FALSE)

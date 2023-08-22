@@ -7,6 +7,7 @@ options(googledrive_quiet = TRUE,
         clustermq.scheduler = "multiprocess") 
 
 tar_option_set(packages = c(
+  'dataRetrieval',
   'googledrive',
   'ncdf4',
   'nhdplusTools',
