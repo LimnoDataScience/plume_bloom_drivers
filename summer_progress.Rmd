@@ -1,0 +1,479 @@
+---
+title: "Summary of sediment-storm relationship"
+author: "Lindsay R.C. Platt"
+date: "2023-08-22"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo=FALSE, 
+  warning=FALSE, 
+  message=FALSE
+)
+```
+
+## Background
+
+We hypothesize that more frequent, high intensity storms are contributing to the increases in algal blooms in western arm of Lake Superior. Following the remotely sensed sediment classification workflow, we set out to start exploring the relationship between sediment presence with conditions in the contributing basins.
+
+[This issue on GitHub](https://github.com/LimnoDataScience/plume_bloom_drivers/issues/11) chronologically captures my exploration process. However, I am summarizing our current findings and next steps in this document. The code captured here assumes that you have run the pipeline and have created the targets referenced in `tar_read()` or `tar_load()` commands.
+
+```{r load_things}
+library(cowplot)
+library(ggpubr)
+library(scico)
+library(sf)
+library(targets)
+library(tidyverse)
+
+# General info
+tar_load(p1_nwis_sites)
+tar_load(p2_obs_blooms_details)
+
+# Timeseries data
+rs_classified <- read_csv('GTB_by_mission_v2023-08-03.csv') # This has yet to be pulled into the pipeline and can be downloaded from https://drive.google.com/drive/folders/1DVs8635XP-zwDUuzd6P2UxfFCD5biP4K
+tar_load(p2_prism_data_huc)
+tar_load(p1_nwis_Q)
+
+# Spatial elements
+tar_load(p1_nwis_sites_sf)
+tar_load(p1_huc10_nwis_sites)
+tar_load(p2_lake_superior_watershed_dissolved)
+
+# Helper functions/settings
+
+site_huc_xwalk <- p1_huc10_nwis_sites %>% 
+  st_drop_geometry() %>% 
+  select(nwis_site, HUC10 = huc10) %>% 
+  left_join(p1_nwis_sites, by = "nwis_site")
+
+# Quantifying "95th percentile rainfall event" as severe storm
+# https://www.epa.gov/sites/default/files/2015-08/documents/epa_swm_guidance.pdf
+storm_perc <- 0.95
+
+add_storm_ppt <- function(all_ppt, storm_percentile = 0.95) {
+  quantile(all_ppt, probs = storm_percentile) %>% unname()
+}
+
+# Pass in a vector of month numbers (1 thru 12) and get a 
+# vector of the same size with the season back.
+month_to_season <- function(month_num) {
+  # Create vector with season as the value and month number as the name
+  month_season <- setNames(rep(c("Winter", "Spring", "Summer", "Fall"), each = 3), c(12, 1:11))
+  
+  # Arrange so that DEC is in the 12th spot
+  month_season <- month_season[order(as.numeric(names(month_season)))] 
+  
+  # Pull out the season based on month number as the indices
+  season_out <- month_season[month_num]
+  names(season_out) <- NULL # Drop the names attribute
+  
+  return(season_out)
+}
+
+order_seasons <- function(season_vec) {
+  ordered(season_vec, levels = c('Winter', 'Spring', 'Summer', 'Fall'))
+}
+```
+
+## Area of interest
+
+We chose four 10-digit Hydrologic Unit Codes (HUC10) in the Lake Superior watershed with a USGS National Water Information System (NWIS) stream gage. The approach for downloading and processing the climate driver and discharge data is currently automated. Adding a new basin in the future would be easy; we only need to manually identify the NWIS stream gage associated with it. Below is a map of the four basins and their NWIS stream gages (not all gages are located at the outlet of the basin into Lake Superior, some are further upstream).
+
+```{r basin_map}
+crs_to_map <- st_crs(p2_lake_superior_watershed_dissolved)
+
+huc10_sf <- p1_huc10_nwis_sites %>% 
+  left_join(p1_nwis_sites, by = "nwis_site") %>% 
+  mutate(map_name = sprintf('%s (NWIS Site %s)', 
+                            river, nwis_site)) %>% 
+  st_transform(crs_to_map)
+
+ggplot() + 
+  geom_sf(data = huc10_sf, aes(fill = map_name), lwd=0.75) +
+  geom_sf(data = p2_lake_superior_watershed_dissolved, 
+          fill=NA, lwd=1) +
+  geom_sf(data = st_transform(p1_nwis_sites_sf, crs_to_map),
+          color = "#d8392b", size = 4, shape = 'X') + 
+  # scale_shape(name = "NWIS Site Number") +
+  scale_fill_scico_d(name = "") +
+  theme_void() + 
+  theme(legend.position = c(0.80,0.70), 
+        plot.title = element_text(hjust = 0.5)) #+
+  # ggtitle('NWIS site locations and HUC10 watersheds')
+```
+
+## Visualizing data
+
+### Sediment presence
+
+The main data input is our sediment presence data. I started with the tabular output available from the [Superior-Plume-Bloom classification workflow](https://github.com/rossyndicate/Superior-Plume-Bloom). These tabular data report sediment percentages for the full Lake Superior AOI per satellite date. There is no spatial information associated with them, and I filtered to only those mission-dates where at least 50% of the AOI was able to be classified. There are now exported rasters of the classified output, but I have yet to explore them in this analysis. I will be moving onto that next; see [Next Steps](#next-steps).
+
+<a name="sediment_ts"></a>
+
+```{r sediment_ts, fig.width=10, fig.height=8}
+sediment <- rs_classified %>% 
+  filter(extent == 'aoi no sc') %>%
+  # Remove dates and missions where <50% of the AOI 
+  # scene was able to be classified
+  filter(perc_extent_classified >= 50) %>%
+  # Keep only the percentages for sediment
+  select(mission, date, 
+         cloud_pct = cloud_perc_extent_area,
+         light_nearshore_pct = lightNSSed_perc_extent_area,
+         dark_nearshore_pct = darkNSSed_perc_extent_area,
+         offshore_pct = offShoreSed_perc_extent_area) %>% 
+  mutate(sediment_total_pct = light_nearshore_pct + dark_nearshore_pct + offshore_pct) %>% 
+  mutate(year = year(date),
+         year_mission = sprintf('%s_%s', year, mission),
+         season = order_seasons(month_to_season(month(date))))
+
+p1 <- ggplot(sediment, aes(x=date, y=sediment_total_pct)) +
+  geom_point(aes(alpha = cloud_pct, fill = season),
+             shape = 22, color = "transparent", size=2) +
+  theme_bw() +
+  theme(legend.position="none") +
+  facet_grid(. ~ season) +
+  geom_smooth(color = 'black') +
+  ylab('Daily % sediment') +
+  xlab('Date') +
+  ggtitle('Daily timeseries of % sediment, transparency based on cloud cover')
+
+p2 <- sediment %>% 
+  filter(cloud_pct < 50) %>% 
+  ggplot(aes(x=date, y=sediment_total_pct,
+             color = season, fill = season)) +
+  geom_smooth(color = 'black') +
+  geom_point(shape = 22, color = "transparent", size=2) +
+  theme_bw() +
+  theme(legend.position = "none") +
+  facet_grid(. ~ season) +
+  ylab('Daily % sediment') +
+  xlab('Date') +
+  ggtitle('Daily timeseries of % sediment, only clouds below 50%')
+
+p3 <- sediment %>% 
+  group_by(year, season) %>% 
+  summarize(avg_sediment = mean(sediment_total_pct)) %>% 
+  ggplot(aes(x = year, y = avg_sediment, 
+             color = season, fill = season)) +
+  geom_smooth(color = 'black') +
+  geom_point() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  facet_grid(. ~ season) +
+  ylab('Average annual % sediment') +
+  xlab('Year') +
+  ggtitle('Annual timeseries of % sediment')
+
+cowplot::plot_grid(p1, p2, p3, nrow = 3, ncol = 1)
+```
+
+### Precipitation
+
+Precipitation data was downloaded from PRISM and summarized into daily totals per basin for each of the four basins (more about that process is documented in [this pull request](https://github.com/LimnoDataScience/plume_bloom_drivers/pull/8)). You'll notice a slight dip in the precip totals between 2000-2010. This happens around the same time as a dip in the sediment timeseries (see the [sediment figure](#sediment_ts)).
+
+```{r precip_ts, fig.width=8, fig.height=10}
+ppt_ready <- p2_prism_data_huc %>% 
+  filter(variable == 'ppt') %>% 
+  rename(ppt = value_huc, HUC10 = huc) %>% 
+  # GROUP BY HUC AND CALC STORM VALUE
+  group_by(HUC10) %>%
+  mutate(ppt_huc_storm = add_storm_ppt(ppt, 0.95)) %>% 
+  ungroup() %>% 
+  mutate(season = order_seasons(season)) %>% # Add the season as a factor
+  left_join(site_huc_xwalk, by = "HUC10") # Add river names
+
+# Filter data to only days with storm level rainfall
+ppt_storm <- ppt_ready %>% 
+  filter(ppt >= ppt_huc_storm) 
+
+precip_ts_p1 <- ggplot(ppt_storm, aes(x=date, y=ppt)) +
+  geom_point(aes(color = season), shape = 1) +
+  geom_smooth(color = 'black') +
+  theme_bw() +
+  theme(legend.position = "none") +
+  facet_grid(river ~ season, scales = 'free') +
+  ylab('Daily precip, mm') +
+  xlab('Date') +
+  ggtitle(sprintf('Timeseries of storm event rainfall totals (>= %sth percentile)', storm_perc*100)) #+
+  # theme(legend.position='none')
+
+precip_ts_p2 <- ppt_storm %>% 
+  group_by(river, year, season) %>% 
+  tally() %>% 
+  ggplot(aes(x=year, y = n, fill = season)) +
+  geom_bar(stat = 'identity', position = position_dodge()) +
+  geom_smooth(color = 'black') +
+  theme_bw() +
+  theme(legend.position = "none") +
+  facet_grid(river ~ season, scales = 'free') +
+  ylab('Number of storm events') +
+  xlab('Date') +
+  ggtitle(sprintf('Timeseries of storm event occurrence (>= %sth percentile)', storm_perc*100))
+
+cowplot::plot_grid(precip_ts_p1, precip_ts_p2, nrow = 2, ncol = 1)
+```
+
+### NWIS discharge
+
+Discharge was downloaded using `dataRetrieval`. Daily mean values are visualized below for each of the four NWIS sites identified. Note that the Siskiwit site is a newer site and has fewer data points. As such, it may be difficult to draw conclusions about a sediment-discharge relationship for this basin in future analyses.
+
+Similar to the sediment and precip, we see a slight dip between 2000-2010. Interesting ...
+
+```{r discharge_ts, fig.width=8, fig.height=6}
+
+# Filter data to only days with storm level rainfall
+Q_ready <- p1_nwis_Q %>% 
+  mutate(year = year(date),
+         month = month(date)) %>% 
+  mutate(year.month = as.numeric(sprintf('%s.%s', year, month)),
+         season = order_seasons(month_to_season(month))) %>% 
+  left_join(site_huc_xwalk, by = "nwis_site") # Add river names
+
+ggplot(Q_ready, aes(x=date, y=Q)) +
+  geom_point(aes(color = season), shape = 1) +
+  geom_smooth(color = 'black') +
+  theme_bw() +
+  theme(legend.position = "none") +
+  facet_grid(river ~ season, scales = 'free') +
+  ylab('Daily mean discharge, ft3/sec') +
+  xlab('Date')
+```
+
+## Building relationships
+
+### Precip-Q
+
+I took some time to evaluate the relationship between our weighted cumulative precip data and the discharge reported at each basin. The initial relationships were not encouraging, so we tried a few different things:
+
+1. accounting for basin shape/size and gage placement using a lag,
+1. separating out the seasons, and
+1. filtering to only storm days.
+
+A lag between discharge and precipitation for each basin was determined by using a cross correlation function and identifying the maximum correlation for each basin. This plot shows differences in how the discharge and precipitation are correlated for each basin.
+
+```{r q_precip_lag, fig.height=6, fig.width=7}
+
+precip_Q <- ppt_ready %>% 
+  left_join(Q_ready, by = c("river", "nwis_site", "HUC10", "date")) 
+
+# Run a cross correlation between Q & precip for each basin
+ccf_ppt_q_byriver <- precip_Q %>% 
+  filter(!is.na(Q), !is.na(ppt)) %>% 
+  split(.$river) %>% 
+  purrr::map(~ccf(.x$ppt, .x$Q, plot = F, ci = 0.99))
+
+par(mfrow = c(2,2))
+for(i in 1:length(ccf_ppt_q_byriver)) {
+  plot(ccf_ppt_q_byriver[[i]], 
+       main = names(ccf_ppt_q_byriver)[i])
+  arrows(x0 = 0, y0 = -0.1, y1 = 0, 
+         col='red', lwd=2, length=0.1)
+}
+par(mfrow = c(1,1))
+
+# Extract the maximum lag above a correlation value of 0.05
+statsig_lags <- ccf_ppt_q_byriver %>% 
+  purrr::map(function(x) {
+    blue_line_val <- qnorm((1 + 0.99)/2) / sqrt(x$n.used)
+    lags_above <- x$lag[x$acf > 0.20]
+    # Choose the biggest lag (negative or positive)
+    lag_out <- lags_above[which.max(abs(lags_above))]
+    return(lag_out)
+  })
+```
+
+Both by actual date and by using each of the individual basin lags, precipitation was matched to discharge values. All four panels show the relationship between discharge vs precipitation. It mostly makes sense but might not be as close to a 1:1 as I thought it would be. Note that you will not see a difference for Siskiwit when lag is added because the lag found from cross correlation was 0 days. 
+
+```{r precip_q, fig.height=7, fig.width=10} 
+# Apply the lag to the precip-Q relationship part.
+ppt_q_comparison_data <- precip_Q %>%  
+  # Need to add a column that represents the precip if you include the lag per river
+  # This method assumes that `split(.$river)` and `statsig_lags` have rivers in the same order
+  split(.$river) %>% 
+  purrr::map2(statsig_lags, ~mutate(.x, ppt_lag = lag(ppt, abs(.y)))) %>% 
+  bind_rows() %>% 
+  # Change season to factor for plotting
+  mutate(season = ordered(month_to_season(month(date)), 
+                          levels = c('Winter', 'Spring', 'Summer', 'Fall')))
+
+p <- ggplot(ppt_q_comparison_data, aes(x = ppt, y = Q, color = season)) +
+  geom_point(alpha = 0.70) +
+  facet_grid(river ~ season, scales="free_y") +
+  geom_smooth(color = 'black') +
+  ylab('Daily mean discharge, ft^3/sec') + xlab('Total daily precip, mm') +
+  theme_bw() +
+  theme(legend.position = "none") +
+  ggtitle('Q-PPT relationship')
+
+p_storm <- ppt_q_comparison_data %>% 
+  # Filter to only storms
+  filter(ppt >= ppt_huc_storm) %>%
+  ggplot(aes(x = ppt, y = Q, color = season)) +
+  geom_point(alpha = 0.70) +
+  facet_grid(river ~ season, scales="free_y") +
+  geom_smooth(color = 'black') +
+  ylab('Daily mean discharge, ft^3/sec') + xlab('Total daily precip, mm') +
+  theme_bw() +
+  theme(legend.position = "none") +
+  ggtitle('Q-PPT relationship, only storms')
+
+p_lag <- ggplot(ppt_q_comparison_data, aes(x = ppt_lag, y = Q, color = season)) +
+  geom_point(alpha = 0.70) +
+  facet_grid(river ~ season, scales="free_y") +
+  geom_smooth(color = 'black') +
+  ylab('Daily mean discharge, ft^3/sec') + xlab('Total daily precip, mm') +
+  theme_bw() +
+  theme(legend.position = "none") +
+  ggtitle('Q-PPT relationship with lag')
+
+p_lag_storm <- ppt_q_comparison_data %>% 
+  # Filter to only storms
+  filter(ppt_lag >= ppt_huc_storm) %>%
+  ggplot(aes(x = ppt_lag, y = Q, color = season)) +
+  geom_point(alpha = 0.70) +
+  facet_grid(river ~ season, scales="free_y") +
+  geom_smooth(color = 'black') +
+  ylab('Daily mean discharge, ft^3/sec') + xlab('Total daily precip, mm') +
+  theme_bw() +
+  theme(legend.position = "none") +
+  ggtitle('Q-PPT relationship with lag, only storms')
+
+cowplot::plot_grid(p, p_lag, p_storm, p_lag_storm)
+```
+
+### Precip-sediment
+
+Our initial hypothesis was the more intense rainfall events have led to the increased algal blooms. To start to understand whether this could be true, I looked at the relationship between precipitation and sediment presence. I filtered the dataset to only those mission-dates around an observed bloom event. The precipitation was totaled per basin for 7-day ahead cumulative precipitation values using only those days that experienced "storm" (greater than the 95th percentile) precipitation. Since we have not started to use the rasterized output data for sediment, each of the relationships are using the same sediment data - daily percent of sediment in the entire classifiable AOI without shoreline contamination. For each bloom date, I calculated the sediment presence as the maximum sediment percentage using daily values from 7 days ahead PLUS 3 days after the bloom date.
+
+```{r precip_sediment, fig.width=8, fig.height=8}
+
+# Identify exact bloom dates
+exact_bloom_dates <- unique(p2_obs_blooms_details$`Start Date`)
+
+# Create n-day window leading up to each bloom to capture rainfall
+days_ahead <- 7
+window_bloom_dates_before <- map(exact_bloom_dates, function(date) {
+  tibble(bloom_date = date,
+         date = seq(date - days_ahead, date, by = 1))
+}) %>% bind_rows() %>% distinct() %>% 
+  arrange(bloom_date) %>% 
+  # For bloom dates that may overlap, only keep the early bloom id
+  arrange(date) %>% 
+  group_by(date) %>% 
+  filter(bloom_date == min(bloom_date))
+
+# Create n-day window after each bloom to capture sediment plumes
+days_after <- 3
+window_bloom_dates_after <- map(exact_bloom_dates, function(date) {
+  tibble(bloom_date = date,
+         date = seq(date, date + days_after , by = 1))
+}) %>% bind_rows() %>% distinct() %>% 
+  arrange(bloom_date) %>% 
+  # For bloom dates that may overlap, only keep the early bloom id
+  arrange(date) %>% 
+  group_by(date) %>% 
+  filter(bloom_date == min(bloom_date))
+
+# Combine all the dates
+window_bloom_dates_all <- window_bloom_dates_before %>% 
+  bind_rows(window_bloom_dates_after) %>% 
+  distinct()
+
+ppt <- ppt_ready %>% 
+  # Filter only to storm data
+  filter(ppt >= ppt_huc_storm) %>% 
+  inner_join(window_bloom_dates_before, by = 'date') %>% 
+  # For each bloom event, total up the precipitation
+  group_by(HUC10, bloom_date) %>% 
+  summarize(ppt_bloom_total = sum(ppt))
+
+# Average the sediment percentage if more than one mission is present
+sediment_onevalperday <- sediment %>% 
+  group_by(date) %>% 
+  summarize(sediment_total_pct_missionavg = mean(sediment_total_pct)) %>% 
+  inner_join(window_bloom_dates_all, by = 'date') %>% 
+  # For each bloom event, find the maximum sediment
+  group_by(bloom_date) %>% 
+  summarize(sediment_pct_max = mean(sediment_total_pct_missionavg))
+
+# Join the sediment percentage per bloom date to the precip value per bloom date
+ppt_sediment <- ppt %>% 
+  full_join(sediment_onevalperday, by = 'bloom_date') %>% 
+  left_join(site_huc_xwalk)
+
+# Correlation plot as fxn
+correlate_sed_ppt <- function(in_data, in_title) {
+  ggpubr::ggscatter(
+    in_data, 
+    x = "ppt_bloom_total", 
+    y = "sediment_pct_max", 
+    add = "reg.line", conf.int = TRUE, 
+    cor.coef = TRUE, cor.method = "kendall",
+    xlab = sprintf("%s-day cumulative storm precip\nleading up to bloom date", days_ahead), 
+    ylab = "% sediment",
+    ylim = c(-50, 100),
+    title = in_title
+  )
+}
+
+huc_plot_list <- ppt_sediment %>% 
+  split(.$river) %>% 
+  purrr::map(~correlate_sed_ppt(.x, unique(.x$river)))
+cowplot::plot_grid(plotlist=huc_plot_list)
+
+```
+
+### Q-sediment
+
+Since the precip-sediment relationships were not as strong as I thought they would be, I also tried looking at discharge-sediment. These are still not very strong, though Bois Brule looks more promising, so I think trying them again but using only sediment in areas that are near the river outlets (see [Next Steps](#next-steps)) might strengthen this relationship. 
+
+For each bloom event, I calculated a matching discharge by finding the maximum discharge over the previous 7 days.
+
+```{r q_sediment, fig.height=8, fig.width=8}
+# This figure uses a lot of the R objects created in the previous chunk
+
+Q_bloom <- Q_ready %>% 
+  # For each bloom event, average the discharge ahead of the bloom
+  inner_join(window_bloom_dates_before, by = 'date') %>% 
+  group_by(river, bloom_date) %>% 
+  summarize(bloom_Q = max(Q))
+
+# Join the sediment percentage per bloom date to the precip value per bloom date
+discharge_sediment <- Q_bloom %>% 
+  full_join(sediment_onevalperday, by = 'bloom_date')
+
+# Correlation plot as fxn
+correlate_sed_discharge <- function(in_data, in_title) {
+  ggpubr::ggscatter(
+    in_data, 
+    x = "bloom_Q", 
+    y = "sediment_pct_max", 
+    add = "reg.line", conf.int = TRUE, 
+    cor.coef = TRUE, cor.method = "kendall",
+    xlab = sprintf("%s-day max discharge\nleading up to bloom date, cfs", days_ahead), 
+    ylab = "% sediment",
+    ylim = c(-50, 100),
+    title = in_title
+  )
+}
+
+huc_plot_list <- discharge_sediment %>% 
+  split(.$river) %>% 
+  purrr::map(~correlate_sed_discharge(.x, sprintf('%s', unique(.x$river))))
+cowplot::plot_grid(plotlist=huc_plot_list)
+
+```
+
+## Next steps
+<a name="next-steps"></a>
+
+At this time, I only have two ideas of what to try next. I will be interested in connecting about where we can go next with this.
+
+1.  Use [the raster sediment presence output](https://www.hydroshare.org/resource/17cd38e9ac7845c29b0f45dab15e7073/) (maybe automate the download with [this tool](https://castronova.github.io/hstools/getting-started/)) to rebuild precip-sediment and Q-sediment relationships by grouping raster cells that are near each of the basin outlets.
+1. Try the discharge-sediment relationship again but use custom windows based on the identified basin lag from the cross correlation function to set the window for finding maximum discharge ahead of a bloom event.
