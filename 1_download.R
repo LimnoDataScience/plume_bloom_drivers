@@ -105,20 +105,16 @@ p1_download <- list(
   tar_target(p1_nwis_sites_sf, 
              dataRetrieval::readNWISsite(p1_nwis_sites$nwis_site) %>% 
                st_as_sf(coords = c('dec_long_va', 'dec_lat_va'), crs=4326)),
-  tar_target(p1_huc08_nwis_sites, 
-             get_huc(id = unique(p1_nwis_sites_sf$huc_cd), type='huc08')),
   
-  # Use the HUC8 shape to pull the appropriate HUC10s, then filter to just those
-  # that contain the NWIS site point. 
+  # Use the NWIS sites to find the matching HUC10s
   tar_target(p1_huc10_nwis_sites, 
-             p1_huc08_nwis_sites %>% 
-               split(.$id) %>% 
+             p1_nwis_sites_sf %>% 
+               split(.$site_no) %>% 
+               # TODO: Not sure about routing at this time. We may want to include
+               # more of the HUC10s that route into this one.
                purrr::map(~get_huc(AOI = .x, type='huc10') %>% 
-               # TODO: Not sure about routing at this time. It could be that 
-               # some feed into the next one and more should be included.
-               st_filter(p1_nwis_sites_sf, .predicate = st_contains)) %>% 
-               bind_rows() %>% 
-               distinct()),
+                            select(huc10, name, areasqkm)) %>% 
+               bind_rows(.id = "nwis_site")),
   
   ##### Download the PRISM meteo data #####
   
@@ -159,12 +155,22 @@ p1_download <- list(
   # so that this target will move on and build all branches BUT will
   # not considered "complete" and thus will try to rebuild the branch that
   # errored the next time the pipeline is built.
-  error = "null")
+  error = "null"),
   
   # If you download the zip of all the pre-downloaded prism data, uncomment
   # this target and comment out the one above instead. Make sure you 
   # unzip the files and place them in `1_download/prism_data/`
   # tar_target(p1_prism_files, 
   #            list.files('1_download/prism_data'))
+  
+  ##### Download NWIS discharge data #####
+  
+  tar_target(p1_nwis_Q, 
+             readNWISdv(siteNumber = p1_nwis_sites$nwis_site, 
+                        startDate = min(p1_prism_dates),
+                        endDate = max(p1_prism_dates),
+                        parameterCd = '00060') %>% 
+               renameNWISColumns() %>% 
+               select(nwis_site = site_no, date = Date, Q = Flow))
   
 )
