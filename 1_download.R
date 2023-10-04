@@ -171,6 +171,20 @@ p1_download <- list(
                         endDate = max(p1_prism_dates),
                         parameterCd = '00060') %>% 
                renameNWISColumns() %>% 
-               select(nwis_site = site_no, date = Date, Q = Flow))
+               select(nwis_site = site_no, date = Date, Q = Flow)),
   
+  ##### Download rasters of classified sediment data from HydroShare #####
+  
+  # For now, manually downloaded zips and placed in the `1_download/in` folder
+  # https://www.hydroshare.org/resource/17cd38e9ac7845c29b0f45dab15e7073/
+  # Might be able to switch to using HSClientR in the future once the item
+  # is not private but auth doesn't work right now and is "forbidden"
+  # HSClientR::hs_access('17cd38e9ac7845c29b0f45dab15e7073')
+  tar_target(p1_hs_sedclass_tifzips_dir, '1_download/in/tifzips', format='file'),
+  tar_target(p1_hs_sedclass_tifzips, list.files(p1_hs_sedclass_tifzips_dir, full.names = TRUE)),
+  # Next target only here to map over previous target in order for branching in `p1_hs_sedclass_tif` to take place
+  tar_target(p1_hs_sedclass_tif_zip, p1_hs_sedclass_tifzips, pattern=map(p1_hs_sedclass_tifzips), format='file'),
+  tar_target(p1_hs_sedclass_tif, 
+             unzip_tifs(p1_hs_sedclass_tif_zip, '1_download/out/sediment_tifs'), 
+             pattern = map(p1_hs_sedclass_tif_zip))
 )
