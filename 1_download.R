@@ -184,7 +184,12 @@ p1_download <- list(
   tar_target(p1_hs_sedclass_tifzips, list.files(p1_hs_sedclass_tifzips_dir, full.names = TRUE)),
   # Next target only here to map over previous target in order for branching in `p1_hs_sedclass_tif` to take place
   tar_target(p1_hs_sedclass_tif_zip, p1_hs_sedclass_tifzips, pattern=map(p1_hs_sedclass_tifzips), format='file'),
-  tar_target(p1_hs_sedclass_tif, 
+  tar_target(p1_hs_sedclass_tifs, 
              unzip_tifs(p1_hs_sedclass_tif_zip, '1_download/out/sediment_tifs'), 
-             pattern = map(p1_hs_sedclass_tif_zip))
+             pattern = map(p1_hs_sedclass_tif_zip),
+             format = 'file'),
+  # Could not get this to branch over the `format='file'` without making this a pattern and 
+  # I want to collapse the list, so adding a hash column instead.
+  tar_target(p1_hs_sedclass_tif_info, tibble(tif_fn = unname(p1_hs_sedclass_tifs)) %>% 
+               mutate(tif_fn_hash = tools::md5sum(tif_fn)))
 )
