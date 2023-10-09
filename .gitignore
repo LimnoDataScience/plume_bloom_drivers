@@ -46,4 +46,6 @@ _targets/*
 1_download/out/*
 1_download/prism_data/*
 2_process/in/prism_data_huc.csv
+2_process/tmp/*
+2_process/out/*
 !*/*/.placeholder

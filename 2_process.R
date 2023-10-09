@@ -34,6 +34,32 @@ p2_process <- list(
              # Landsat 7 striping issue.
   ),
   
+  ##### Process classified tifs from HydroShare #####
+  
+  # Convert classified rasters to binary - 0 for not a sediment class, 1 for sediment class
+  tar_target(p2_sedpresence_terraqs, {
+    classified_raster_to_sed_presence(
+      in_file = p1_hs_sedclass_tif_info$tif_fn,
+      out_file = sprintf('2_process/tmp/%s', gsub('.tif', '.qs', basename(p1_hs_sedclass_tif_info$tif_fn))))
+  },
+    pattern = map(p1_hs_sedclass_tif_info), 
+    format = 'file'),
+  
+  # PER MISSION, sum each of the raster files cell values of binary 
+  # sediment presence to create a heatmap
+  tar_target(p2_terraqs_grp, tibble(terraqs_fn = p2_sedpresence_terraqs) %>% 
+               mutate(terraqs_fn_hash = tools::md5sum(terraqs_fn), # Use hash to rebuild downstream targets if the files change
+                      mission = ifelse(grepl('Sentinel', terraqs_fn), 
+                                       yes = 'Sentinel', no = 'Landsat')) %>% 
+               group_by(mission) %>% 
+               tar_group(),
+             iteration = 'group'),
+  tar_target(p2_sediment_heatmap_terraqs, 
+             sum_sed_presence(p2_terraqs_grp$terraqs_fn,
+                              sprintf('2_process/out/sediment_heatmap_%s.qs', 
+                                      unique(p2_terraqs_grp$mission))),
+             pattern = map(p2_terraqs_grp)),
+  
   ##### Load and process observed blooms spreadsheet #####
   
   tar_target(p2_obs_blooms_details, clean_bloom_history(p1_obs_blooms_xlsx)),

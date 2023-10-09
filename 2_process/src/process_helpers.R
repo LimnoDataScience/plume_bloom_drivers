@@ -33,6 +33,33 @@ summarize_raster_class_counts <- function(raster_list) {
     select(mission, date, class = value, count)
 }
 
+# Per file, convert class values 0 thru 4 to sediment 
+# binary value (sediment classes are 2 thru 4 and would become 1)
+classified_raster_to_sed_presence <- function(in_file, out_file) {
+  
+  # Load the tif file
+  rast_by_class <- terra::rast(in_file)
+  
+  # if(nrow(terra::freq(rast_by_class)) > 1) browser()
+  
+  # Convert from classes 0:4 to sediment/not sediment binary
+  rast_sed_bin <- subst(subst(rast_by_class, from=1, to=0), from=2:4, to=1)
+  
+  save_terraqs(rast_sed_bin, out_file)
+  return(out_file)
+}
+
+sum_sed_presence <- function(in_files, out_file) {
+ 
+  # Sum the values across all rasters
+  rast_sum <- purrr::map(in_files, load_terraqs) %>%
+    sprc() %>% 
+    mosaic(fun = "sum")
+  
+  save_terraqs(rast_sum, out_file)
+  return(out_file)
+}
+
 # Read in and process the manually generated bloom observation spreadsheet from Kait Reinl
 clean_bloom_history <- function(file_in) {
   
@@ -162,3 +189,10 @@ month_to_season <- function(month_num) {
   
   return(season_out)
 }
+
+# There is a specific way you need to load/save terra
+# raster objects in order to share between targets.
+# See more at https://github.com/rspatial/terra/issues/987
+save_terraqs <- function(terra_obj, qs_file) qs::qsave(terra::wrap(terra_obj), qs_file)
+load_terraqs <- function(qs_file) terra::unwrap(qs::qread(qs_file))
+# Use the above to load any targets with the suffix `_terraqs`
