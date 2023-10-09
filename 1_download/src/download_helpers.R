@@ -45,5 +45,6 @@ unzip_tifs <- function(in_zip, out_dir, overwrite=TRUE) {
     return(zips_extracted_tifs)
   }) %>% reduce(c)
   
-  return(zips_extracted_tifs_all)
+  zips_extracted_tifs_fullname <- file.path(out_dir, zips_extracted_tifs_all)
+  return(zips_extracted_tifs_fullname)
 }
