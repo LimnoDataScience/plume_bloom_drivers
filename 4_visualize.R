@@ -1,4 +1,6 @@
 
+source('4_visualize/src/visualize_helpers.R')
+
 p4_visualize <- list(
   
   tar_target(p4_basic_summary_histogram, {
@@ -73,6 +75,22 @@ p4_visualize <- list(
       theme(strip.background = element_blank(),
             strip.placement = "outside",
             strip.text.y = element_text(size = 15))
-  })
+  }),
+  
+  ##### Maps of sediment presence from classified rasters #####
+  
+  tar_target(p4_sediment_sentinel_heatmap_png, 
+             make_sediment_heatmap(in_file = p2_sediment_heatmap_sentinel_terraqs,
+                                   out_file = '4_visualize/out/sediment_heatmap_sentinel.png',
+                                   mission = 'Sentinel',
+                                   lake_sf = p2_lake_superior_watershed_dissolved),
+             format='file'),
+  
+  tar_target(p4_sediment_landsat_heatmap_png, 
+             make_sediment_heatmap(in_file = p2_sediment_heatmap_landsat_terraqs,
+                                   out_file = '4_visualize/out/sediment_heatmap_landsat.png',
+                                   mission = 'Landsat',
+                                   lake_sf = p2_lake_superior_watershed_dissolved),
+             format='file')
   
 )

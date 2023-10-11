@@ -48,4 +48,5 @@ _targets/*
 2_process/in/prism_data_huc.csv
 2_process/tmp/*
 2_process/out/*
+4_visualize/out/*
 !*/*/.placeholder
