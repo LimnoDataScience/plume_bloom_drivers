@@ -51,10 +51,13 @@ classified_raster_to_sed_presence <- function(in_file, out_file) {
 
 sum_sed_presence <- function(in_files, out_file) {
  
-  # Sum the values across all rasters
-  rast_sum <- purrr::map(in_files, load_terraqs) %>%
-    sprc() %>% 
-    mosaic(fun = "sum")
+  # Sum the values across all rasters, keep overwriting the
+  # same object to avoid too much in memory at once.
+  rast_sum <- load_terraqs(in_files[1]) # Had to start with a populated raster
+  for(fn in tail(in_files, -1)) {
+    raster_now <- load_terraqs(fn)
+    rast_sum <- sum(c(rast_sum, raster_now))
+  }
   
   save_terraqs(rast_sum, out_file)
   return(out_file)
