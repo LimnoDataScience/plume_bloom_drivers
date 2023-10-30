@@ -94,7 +94,6 @@ p2_process <- list(
                                 p2_sediment_heatmap_landsat_batch_terraqs)))),
              format='file'),
   
-  
   ##### Load and process observed blooms spreadsheet #####
   
   tar_target(p2_obs_blooms_details, clean_bloom_history(p1_obs_blooms_xlsx)),

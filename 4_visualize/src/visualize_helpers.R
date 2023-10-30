@@ -25,6 +25,6 @@ make_sediment_heatmap <- function(in_file, out_file, mission, lake_sf) {
           panel.background = element_rect(fill='#c3d2e0', color=NA)) +
     ggtitle(sprintf('Sediment heatmap for %s data', mission))
   
-  ggsave(out_file, p, dpi=100, width=800, height=600, units='px')
+  ggsave(out_file, p, dpi=300, width=2000, height=1400, units='px')
   return(out_file)
 }
