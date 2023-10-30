@@ -16,30 +16,6 @@ p1_download <- list(
   
   ##### Download the files from Google Drive #####
   
-  # List the files available in this specified folder
-  tar_target(p1_gd_id_netcdfs, as_id('1g3spZxtTP2tq7TzHaCZqK7Nn1HXB9rKq')),
-  tar_target(p1_gd_netcdfs, {
-    # Add a dependency on p1_authenticated_user target so that this 
-    # builds AFTER the target for authenticated to GH has been run.
-    message(sprintf('Attempting to list files using permissions for %s', 
-                    p1_authenticated_user$emailAddress))
-    drive_ls(p1_gd_id_netcdfs)
-  }),
-  
-  # Download the raster stacks as netcdf files
-  tar_target(p1_netcdfs, {
-    # Add a dependency on p1_authenticated_user target so that this 
-    # builds AFTER the target for authenticated to GH has been run.
-    p1_authenticated_user
-    
-    files_saved_info <- drive_download(
-      p1_gd_netcdfs$id, 
-      path = sprintf('1_download/out/%s', p1_gd_netcdfs$name),
-      overwrite = TRUE)
-    return(files_saved_info$local_path)
-  }, format = 'file',
-  pattern = map(p1_gd_netcdfs)),
-  
   # Download the observed blooms dataset
   tar_target(p1_gd_id_obs_blooms, as_id('1JPheDfzusaOWRS4Dew9KTnCRAqJSQykV')),
   tar_target(p1_obs_blooms_gd_hash, drive_get(p1_gd_id_obs_blooms) %>% 
