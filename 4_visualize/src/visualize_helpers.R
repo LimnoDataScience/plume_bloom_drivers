@@ -28,3 +28,29 @@ make_sediment_heatmap <- function(in_file, out_file, mission, lake_sf) {
   ggsave(out_file, p, dpi=300, width=2000, height=1400, units='px')
   return(out_file)
 }
+
+make_sediment_ts <- function(sediment_ts_byOutlet) {
+  # ggplot(sediment_ts_byOutlet, 
+  #        aes(x = as.Date(date), 
+  #            y = sediment_outlet_pct,
+  #            color = mission)) +
+  #   geom_point() +
+  #   facet_grid(river_outlet ~ .) +
+  #   ylab('Percent of river outlet with sediment') +
+  #   xlab('Date') +
+  #   ggtitle('Time series summary of % sediment per river outlet',
+  #           subtitle = 'From sediment rasters') +
+  #   theme_bw() +
+  #   theme(strip.text.y = element_text(angle = 0))
+  
+  ggplot(sediment_ts_byOutlet,
+         aes(y=sediment_outlet_pct, x=year, group=year_mission, 
+             fill=mission, color=mission)) +
+    geom_boxplot(position = position_dodge(preserve = "single")) +
+    facet_grid(river_outlet ~ .) +
+    theme_bw() +
+    ylab('Daily % sediment') +
+    xlab('Year') +
+    ggtitle('Boxplots per year per mission for daily % sediment')
+}
+

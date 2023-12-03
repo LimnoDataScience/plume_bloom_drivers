@@ -1,5 +1,6 @@
 
 source('2_process/src/process_helpers.R')
+source('2_process/src/summarize_sediment_byOutlet.R')
 
 p2_process <- list(
   
@@ -62,6 +63,23 @@ p2_process <- list(
                                 '_grp([0-9]+)', '', 
                                 p2_sediment_heatmap_landsat_batch_terraqs)))),
              format='file'),
+  
+  # Summarize the sediment presence as a time series per outlet polygon)
+  tar_target(p2_sediment_crs, terra::crs(load_terraqs(p2_sedpresence_terraqs[1]))),
+  tar_target(p2_outlet_list_sf, 
+             create_bbox_sf(p1_river_outlet_bbox_tbl, crs=p2_sediment_crs),
+             pattern = map(p1_river_outlet_bbox_tbl),
+             iteration = 'list'),
+  tar_target(p2_sediment_presence_summary_byOutlet,
+             summarize_sed_pct_byOutlet(p2_sedpresence_terraqs, p2_outlet_list_sf),
+             pattern = p2_sedpresence_terraqs),
+  tar_target(p2_sediment_presence_summary_byOutlet_ready,
+             p2_sediment_presence_summary_byOutlet %>% 
+               mutate(date= as.Date(date),
+                     year = year(date),
+                     year_mission = sprintf('%s_%s', year, mission),
+                     season = ordered(month_to_season(month(date)), 
+                                      levels = c('Winter', 'Spring', 'Summer', 'Fall')))),
   
   ##### Load and process observed blooms spreadsheet #####
   

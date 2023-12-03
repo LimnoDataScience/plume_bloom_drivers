@@ -76,6 +76,15 @@ p1_download <- list(
              tibble(river = c('Nemadji', 'Bois Brule', 'Siskiwit', 'St. Louis'),
                     nwis_site = c('04024430', '04025500', '04026160', '04024000'))),
   
+  # Also create a manual data frame of bbox corners into the lake for each river outlet
+  # Note that the St. Louis outlet bbox is the same as the Nemadji
+  tar_target(p1_river_outlet_bbox_tbl, 
+             tibble(river = c('Nemadji', 'Bois Brule', 'Siskiwit', 'St. Louis'),
+                    xmax = c(-91.892330, -91.570010, -91.082328, -91.892330),
+                    xmin = c(-92.090796, -91.690019, -91.208000, -92.090796),
+                    ymax = c(46.764212, 46.846760, 46.916154, 46.764212),
+                    ymin = c(46.670194, 46.729790, 46.839908, 46.670194))),
+  
   # Find lat/long per site and then download associated HUC8. Note that we want 
   # HUC10s, but `nhdplusTools` won't allow you to get HUC10s from site ids alone.
   tar_target(p1_nwis_sites_sf, 

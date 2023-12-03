@@ -71,6 +71,9 @@ p4_visualize <- list(
                                    out_file = '4_visualize/out/sediment_heatmap_landsat.png',
                                    mission = 'Landsat',
                                    lake_sf = p2_lake_superior_watershed_dissolved),
-             format='file')
+             format='file'),
+  
+  tar_target(p4_sediment_presence_ts_ggplot, 
+             make_sediment_ts(p2_sediment_presence_summary_byOutlet))
   
 )
