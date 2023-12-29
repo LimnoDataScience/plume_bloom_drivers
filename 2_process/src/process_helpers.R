@@ -1,36 +1,32 @@
 
-stacked_netcdf_to_raster_list <- function(nc_file) {
-  nc <- nc_open(nc_file)
-  nc_atts <- attributes(nc$var)$names # List dates
+# Per file, convert class values 0 thru 4 to sediment 
+# binary value (sediment classes are 2 thru 4 and would become 1)
+classified_raster_to_sed_presence <- function(in_file, out_file) {
   
-  # For each date, extract the values and save as a list of rasters
-  out_raster_list <- purrr::map(nc_atts, function(date) {
-    var_atts <- ncatt_get(nc, date)
-    list(
-      mission = var_atts$mission,
-      date = var_atts$date,
-      raster_vals = raster(ncvar_get(nc, date))
-    )
-  })
+  # Load the tif file
+  rast_by_class <- terra::rast(in_file)
   
-  nc_close(nc)
-  return(out_raster_list)
+  # if(nrow(terra::freq(rast_by_class)) > 1) browser()
+  
+  # Convert from classes 0:4 to sediment/not sediment binary
+  rast_sed_bin <- subst(subst(rast_by_class, from=1, to=0), from=2:4, to=1)
+  
+  save_terraqs(rast_sed_bin, out_file)
+  return(out_file)
 }
 
-summarize_raster_class_counts <- function(raster_list) {
+sum_sed_presence <- function(in_files, out_file) {
+ 
+  # Sum the values across all rasters, keep overwriting the
+  # same object to avoid too much in memory at once.
+  rast_sum <- load_terraqs(in_files[1]) # Had to start with a populated raster
+  for(fn in tail(in_files, -1)) {
+    raster_now <- load_terraqs(fn)
+    rast_sum <- sum(c(rast_sum, raster_now))
+  }
   
-  # Extract the raster object from the list
-  raster_vals <- raster_list$raster_vals
-  
-  # Add a class of 5, which will be the NAs
-  raster_vals[is.na(raster_vals)]<-5
-  
-  # Count the number of pixels in each class
-  raster::freq(raster_vals) %>% 
-    as_tibble() %>% 
-    mutate(mission = raster_list$mission,
-           date = raster_list$date) %>% 
-    select(mission, date, class = value, count)
+  save_terraqs(rast_sum, out_file)
+  return(out_file)
 }
 
 # Read in and process the manually generated bloom observation spreadsheet from Kait Reinl
@@ -162,3 +158,10 @@ month_to_season <- function(month_num) {
   
   return(season_out)
 }
+
+# There is a specific way you need to load/save terra
+# raster objects in order to share between targets.
+# See more at https://github.com/rspatial/terra/issues/987
+save_terraqs <- function(terra_obj, qs_file) qs::qsave(terra::wrap(terra_obj), qs_file)
+load_terraqs <- function(qs_file) terra::unwrap(qs::qread(qs_file))
+# Use the above to load any targets with the suffix `_terraqs`

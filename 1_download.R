@@ -16,30 +16,6 @@ p1_download <- list(
   
   ##### Download the files from Google Drive #####
   
-  # List the files available in this specified folder
-  tar_target(p1_gd_id_netcdfs, as_id('1g3spZxtTP2tq7TzHaCZqK7Nn1HXB9rKq')),
-  tar_target(p1_gd_netcdfs, {
-    # Add a dependency on p1_authenticated_user target so that this 
-    # builds AFTER the target for authenticated to GH has been run.
-    message(sprintf('Attempting to list files using permissions for %s', 
-                    p1_authenticated_user$emailAddress))
-    drive_ls(p1_gd_id_netcdfs)
-  }),
-  
-  # Download the raster stacks as netcdf files
-  tar_target(p1_netcdfs, {
-    # Add a dependency on p1_authenticated_user target so that this 
-    # builds AFTER the target for authenticated to GH has been run.
-    p1_authenticated_user
-    
-    files_saved_info <- drive_download(
-      p1_gd_netcdfs$id, 
-      path = sprintf('1_download/out/%s', p1_gd_netcdfs$name),
-      overwrite = TRUE)
-    return(files_saved_info$local_path)
-  }, format = 'file',
-  pattern = map(p1_gd_netcdfs)),
-  
   # Download the observed blooms dataset
   tar_target(p1_gd_id_obs_blooms, as_id('1JPheDfzusaOWRS4Dew9KTnCRAqJSQykV')),
   tar_target(p1_obs_blooms_gd_hash, drive_get(p1_gd_id_obs_blooms) %>% 
@@ -99,6 +75,15 @@ p1_download <- list(
   tar_target(p1_nwis_sites, 
              tibble(river = c('Nemadji', 'Bois Brule', 'Siskiwit', 'St. Louis'),
                     nwis_site = c('04024430', '04025500', '04026160', '04024000'))),
+  
+  # Also create a manual data frame of bbox corners into the lake for each river outlet
+  # Note that the St. Louis outlet bbox is the same as the Nemadji
+  tar_target(p1_river_outlet_bbox_tbl, 
+             tibble(river = c('Nemadji', 'Bois Brule', 'Siskiwit', 'St. Louis'),
+                    xmax = c(-91.892330, -91.570010, -91.082328, -91.892330),
+                    xmin = c(-92.090796, -91.690019, -91.208000, -92.090796),
+                    ymax = c(46.764212, 46.846760, 46.916154, 46.764212),
+                    ymin = c(46.670194, 46.729790, 46.839908, 46.670194))),
   
   # Find lat/long per site and then download associated HUC8. Note that we want 
   # HUC10s, but `nhdplusTools` won't allow you to get HUC10s from site ids alone.
@@ -171,6 +156,25 @@ p1_download <- list(
                         endDate = max(p1_prism_dates),
                         parameterCd = '00060') %>% 
                renameNWISColumns() %>% 
-               select(nwis_site = site_no, date = Date, Q = Flow))
+               select(nwis_site = site_no, date = Date, Q = Flow)),
   
+  ##### Download rasters of classified sediment data from HydroShare #####
+  
+  # For now, manually downloaded zips and placed in the `1_download/in` folder
+  # https://www.hydroshare.org/resource/17cd38e9ac7845c29b0f45dab15e7073/
+  # Might be able to switch to using HSClientR in the future once the item
+  # is not private but auth doesn't work right now and is "forbidden"
+  # HSClientR::hs_access('17cd38e9ac7845c29b0f45dab15e7073')
+  tar_target(p1_hs_sedclass_tifzips_dir, '1_download/in/tifzips', format='file'),
+  tar_target(p1_hs_sedclass_tifzips, list.files(p1_hs_sedclass_tifzips_dir, full.names = TRUE)),
+  # Next target only here to map over previous target in order for branching in `p1_hs_sedclass_tif` to take place
+  tar_target(p1_hs_sedclass_tif_zip, p1_hs_sedclass_tifzips, pattern=map(p1_hs_sedclass_tifzips), format='file'),
+  tar_target(p1_hs_sedclass_tifs, 
+             unzip_tifs(p1_hs_sedclass_tif_zip, '1_download/out/sediment_tifs'), 
+             pattern = map(p1_hs_sedclass_tif_zip),
+             format = 'file'),
+  # Could not get this to branch over the `format='file'` without making this a pattern and 
+  # I want to collapse the list, so adding a hash column instead.
+  tar_target(p1_hs_sedclass_tif_info, tibble(tif_fn = unname(p1_hs_sedclass_tifs)) %>% 
+               mutate(tif_fn_hash = tools::md5sum(tif_fn)))
 )

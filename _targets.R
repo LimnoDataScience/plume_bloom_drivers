@@ -15,6 +15,7 @@ tar_option_set(packages = c(
   'raster',
   'readxl',
   'sf',
+  'terra',
   'tidyverse',
   'yaml'
 ), format='qs', deployment='main')

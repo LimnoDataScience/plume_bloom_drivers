@@ -1,38 +1,85 @@
 
 source('2_process/src/process_helpers.R')
+source('2_process/src/summarize_sediment_byOutlet.R')
 
 p2_process <- list(
   
-  ##### Process NetCDF rasters #####
+  ##### Process classified tifs from HydroShare #####
   
-  # TODO: this will not be a sustainable way to store
-  # processed data when we move beyond a handful of years
+  # Convert classified rasters to binary - 0 for not a sediment class, 1 for sediment class
+  tar_target(p2_sedpresence_terraqs, {
+    classified_raster_to_sed_presence(
+      in_file = p1_hs_sedclass_tif_info$tif_fn,
+      out_file = sprintf('2_process/tmp/%s', gsub('.tif', '.qs', basename(p1_hs_sedclass_tif_info$tif_fn))))
+  },
+    pattern = map(p1_hs_sedclass_tif_info), 
+    format = 'file'),
   
-  # For each annual file, create a list with the date, mission, 
-  # actual raster values layer.
-  tar_target(p2_raster_list_nested, 
-             stacked_netcdf_to_raster_list(p1_netcdfs),
-             pattern = map(p1_netcdfs),
+  # PER MISSION-GROUP, sum each of the raster files cell values of binary 
+  # sediment presence to create a heatmap. Note the full mission files were
+  # two big to do this, so need to batch and then recombine at the end.
+  
+  # To take advantage of tarchetypes batching, had to first separate the 
+  # Sentinel/Landsat targets. Since there are only two, not a big deal to manual split :)
+  tar_target(p2_terraqs_grp, tibble(terraqs_fn = p2_sedpresence_terraqs) %>%
+               mutate(terraqs_fn_hash = tools::md5sum(terraqs_fn), # Use hash to rebuild downstream targets if the files change
+                      mission = ifelse(grepl('Sentinel', terraqs_fn),
+                                       yes = 'Sentinel', no = 'Landsat'))),
+  tarchetypes::tar_group_count(p2_terraqs_grp_ct_sentinel, 
+                               filter(p2_terraqs_grp, mission == "Sentinel"), 
+                               count = 50),
+  tarchetypes::tar_group_count(p2_terraqs_grp_ct_landsat, 
+                               filter(p2_terraqs_grp, mission == "Landsat"), 
+                               count = 50),
+  
+  # Now map over Sentinel batches
+  tar_target(p2_sediment_heatmap_sentinel_batch_terraqs, 
+             sum_sed_presence(p2_terraqs_grp_ct_sentinel$terraqs_fn,
+                              sprintf('2_process/tmp/sediment_heatmap_%s_grp%02d.qs', 
+                                      unique(p2_terraqs_grp_ct_sentinel$mission),
+                                      unique(p2_terraqs_grp_ct_sentinel$tar_group))),
+             pattern = map(p2_terraqs_grp_ct_sentinel),
+             format='file'),
+  # Repeat the same command but combine the group heatmaps into a single Sentinel one
+  tar_target(p2_sediment_heatmap_sentinel_terraqs,
+             sum_sed_presence(p2_sediment_heatmap_sentinel_batch_terraqs,
+                              unique(gsub('tmp', 'out', gsub(
+                                '_grp([0-9]+)', '', 
+                                p2_sediment_heatmap_sentinel_batch_terraqs)))),
+             format='file'),
+  
+  # Now map over Landsat batches
+  tar_target(p2_sediment_heatmap_landsat_batch_terraqs, 
+             sum_sed_presence(p2_terraqs_grp_ct_landsat$terraqs_fn,
+                              sprintf('2_process/tmp/sediment_heatmap_%s_grp%02d.qs', 
+                                      unique(p2_terraqs_grp_ct_landsat$mission),
+                                      unique(p2_terraqs_grp_ct_landsat$tar_group))),
+             pattern = map(p2_terraqs_grp_ct_landsat),
+             format='file'),
+  # Repeat the same command but combine the group heatmaps into a single Landsat one
+  tar_target(p2_sediment_heatmap_landsat_terraqs,
+             sum_sed_presence(p2_sediment_heatmap_landsat_batch_terraqs,
+                              unique(gsub('tmp', 'out', gsub(
+                                '_grp([0-9]+)', '', 
+                                p2_sediment_heatmap_landsat_batch_terraqs)))),
+             format='file'),
+  
+  # Summarize the sediment presence as a time series per outlet polygon)
+  tar_target(p2_sediment_crs, terra::crs(load_terraqs(p2_sedpresence_terraqs[1]))),
+  tar_target(p2_outlet_list_sf, 
+             create_bbox_sf(p1_river_outlet_bbox_tbl, crs=p2_sediment_crs),
+             pattern = map(p1_river_outlet_bbox_tbl),
              iteration = 'list'),
-  
-  # Get all dates + mission lists at the same unnested level
-  tar_target(p2_raster_list, 
-             reduce(p2_raster_list_nested, c), 
-             iteration='list'),
-  
-  # Calculate the frequency for each class category within the raster
-  # by date and mission.
-  tar_target(p2_daily_summaries, 
-             summarize_raster_class_counts(p2_raster_list),
-             pattern = map(p2_raster_list)),
-  tar_target(p2_daily_summaries_clean, 
-             p2_daily_summaries %>% 
-               mutate(date = as.Date(date),
-                      year = format(date, '%Y')) %>% 
-               filter(class != 0, class != 5)
-             # TODO: show class counts as % pixels to handle
-             # Landsat 7 striping issue.
-  ),
+  tar_target(p2_sediment_presence_summary_byOutlet,
+             summarize_sed_pct_byOutlet(p2_sedpresence_terraqs, p2_outlet_list_sf),
+             pattern = p2_sedpresence_terraqs),
+  tar_target(p2_sediment_presence_summary_byOutlet_ready,
+             p2_sediment_presence_summary_byOutlet %>% 
+               mutate(date= as.Date(date),
+                     year = year(date),
+                     year_mission = sprintf('%s_%s', year, mission),
+                     season = ordered(month_to_season(month(date)), 
+                                      levels = c('Winter', 'Spring', 'Summer', 'Fall')))),
   
   ##### Load and process observed blooms spreadsheet #####
   

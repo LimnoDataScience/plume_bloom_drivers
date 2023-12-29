@@ -1,25 +1,7 @@
 
+source('4_visualize/src/visualize_helpers.R')
+
 p4_visualize <- list(
-  
-  tar_target(p4_basic_summary_histogram, {
-    
-    ##### Classified GEE output figures #####
-    
-    # Prepare a vector to use for colors
-    color_vec <- bloom_plume_class_xwalk$color
-    names(color_vec) <- bloom_plume_class_xwalk$val
-    
-    ggplot(p2_daily_summaries_clean,
-           aes(x = year, y = count, fill = as.character(class))) +
-      geom_bar(position="dodge", stat="identity") +
-      facet_wrap(vars(mission)) + 
-      scale_fill_manual(
-        name = "Classification",
-        values = color_vec,
-        breaks = bloom_plume_class_xwalk$val,
-        labels = bloom_plume_class_xwalk$nm) +
-      ylab('Pixel count') + xlab('Year')
-  }),
   
   ##### Observed blooms figures #####
   
@@ -73,6 +55,25 @@ p4_visualize <- list(
       theme(strip.background = element_blank(),
             strip.placement = "outside",
             strip.text.y = element_text(size = 15))
-  })
+  }),
+  
+  ##### Maps of sediment presence from classified rasters #####
+  
+  tar_target(p4_sediment_sentinel_heatmap_png, 
+             make_sediment_heatmap(in_file = p2_sediment_heatmap_sentinel_terraqs,
+                                   out_file = '4_visualize/out/sediment_heatmap_sentinel.png',
+                                   mission = 'Sentinel',
+                                   lake_sf = p2_lake_superior_watershed_dissolved),
+             format='file'),
+  
+  tar_target(p4_sediment_landsat_heatmap_png, 
+             make_sediment_heatmap(in_file = p2_sediment_heatmap_landsat_terraqs,
+                                   out_file = '4_visualize/out/sediment_heatmap_landsat.png',
+                                   mission = 'Landsat',
+                                   lake_sf = p2_lake_superior_watershed_dissolved),
+             format='file'),
+  
+  tar_target(p4_sediment_presence_ts_ggplot, 
+             make_sediment_ts(p2_sediment_presence_summary_byOutlet))
   
 )
